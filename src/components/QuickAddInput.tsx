@@ -70,9 +70,6 @@ export const QuickAddInput = forwardRef<QuickAddInputRef, QuickAddInputProps>(({
 
     const handleClose = () => {
         setModalVisible(false);
-        onTextChange('');
-        onPinChange(false);
-        onDomainChange(null);
         onBlur?.();
     };
 

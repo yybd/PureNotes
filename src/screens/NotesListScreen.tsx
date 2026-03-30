@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotesStore } from '../stores/notesStore';
 import { NoteCard } from '../components/NoteCard';
 import { updateFrontmatter, removeFrontmatterKey } from '../services/FrontmatterService';
@@ -70,9 +71,43 @@ export const NotesListScreen = ({ navigation }: any) => {
     const editModalOtherFm = useRef<Record<string, any>>({});
     const editModalRef = useRef<EditorModalRef>(null);
 
+    // Initial load: fetch notes & draft
     useEffect(() => {
         loadNotes();
+        
+        const loadDraft = async () => {
+            try {
+                const draftStr = await AsyncStorage.getItem('quickNoteDraft');
+                if (draftStr) {
+                    const draft = JSON.parse(draftStr);
+                    if (draft.text) {
+                        setQuickNoteText(draft.text);
+                        // Make sure EditorModal sees this text when opened next time
+                        setTimeout(() => quickAddInputRef.current?.setTextAndSelection(draft.text, {start: draft.text.length, end: draft.text.length}), 100);
+                    }
+                    if (draft.isPinned !== undefined) setQuickNotePinned(draft.isPinned);
+                    if (draft.domain !== undefined) setQuickNoteDomain(draft.domain);
+                }
+            } catch (e) {
+                console.error('Failed to load quick note draft', e);
+            }
+        };
+        loadDraft();
     }, []);
+
+    // Save draft persistently when changed
+    useEffect(() => {
+        const saveDraft = async () => {
+            try {
+                const draft = { text: quickNoteText, isPinned: quickNotePinned, domain: quickNoteDomain };
+                await AsyncStorage.setItem('quickNoteDraft', JSON.stringify(draft));
+            } catch (e) {
+                console.error('Failed to save quick note draft', e);
+            }
+        };
+        // Debounce or just save directly
+        saveDraft();
+    }, [quickNoteText, quickNotePinned, quickNoteDomain]);
 
     const [shouldOpenQuickAdd, setShouldOpenQuickAdd] = useState(false);
 
@@ -136,7 +171,7 @@ export const NotesListScreen = ({ navigation }: any) => {
         };
     }, [loadNotes]);
 
-    // Handle keyboard dismiss (discard draft if not sending)
+    // Handle keyboard dismiss (hide bottom section if needed)
     useEffect(() => {
         const hideListener = Keyboard.addListener(
             Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
@@ -145,20 +180,14 @@ export const NotesListScreen = ({ navigation }: any) => {
 
                 if (isSending) return;
                 if (editModalVisible) return;
-
-                if (quickNoteText) {
-                    quickAddInputRef.current?.clear();
-                    setQuickNoteText('');
-                    setQuickNotePinned(false);
-                    setQuickNoteDomain(null);
-                }
+                // Draft discarding removed - saves in background instead!
             }
         );
 
         return () => {
             hideListener.remove();
         };
-    }, [isSending, editModalVisible, quickNoteText]);
+    }, [isSending, editModalVisible]);
 
     // Handle text change with list/checkbox continuation
     const handleTextChangeWithListContinuation = useCallback((
@@ -257,6 +286,7 @@ export const NotesListScreen = ({ navigation }: any) => {
             setQuickNoteText('');
             setQuickNotePinned(false);
             setQuickNoteDomain(null);
+            AsyncStorage.removeItem('quickNoteDraft').catch(() => {});
 
             await loadNotes();
         } catch (error) {
