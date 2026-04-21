@@ -1,7 +1,7 @@
 // webStorage.ts - IndexedDB wrapper for storing File System Handles
 // LocalStorage cannot store complex objects like FileSystemHandle, so we use IndexedDB.
 
-const DB_NAME = 'NotesObsidianDB';
+const DB_NAME = 'PureNotesDB';
 const STORE_NAME = 'handles';
 const KEY = 'vaultHandle';
 

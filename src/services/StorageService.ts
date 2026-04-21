@@ -1,4 +1,4 @@
-import { Note, ObsidianVaultConfig, DomainType } from '../types/Note';
+import { Note, PureNotesVaultConfig, DomainType } from '../types/Note';
 import { getFrontmatterProperty } from './FrontmatterService';
 import { StorageProvider } from './providers/StorageProvider';
 import { LocalFileProvider } from './providers/LocalFileProvider';
@@ -8,7 +8,7 @@ import { WebStorageProvider } from './providers/WebStorageProvider';
 import { Platform } from 'react-native';
 
 class StorageService {
-    private config: ObsidianVaultConfig | null = null;
+    private config: PureNotesVaultConfig | null = null;
     private localProvider: StorageProvider;
     private externalProvider: StorageProvider | null = null;
 
@@ -30,14 +30,14 @@ class StorageService {
         }
     }
 
-    setConfig(config: ObsidianVaultConfig | null) {
+    setConfig(config: PureNotesVaultConfig | null) {
         this.config = config;
         if (this.externalProvider && this.externalProvider.setConfig) {
             this.externalProvider.setConfig(config);
         }
     }
 
-    getConfig(): ObsidianVaultConfig | null {
+    getConfig(): PureNotesVaultConfig | null {
         return this.config;
     }
 
@@ -49,7 +49,7 @@ class StorageService {
         return this.isExternal() ? this.externalProvider! : this.localProvider;
     }
 
-    async selectExternalFolder(): Promise<ObsidianVaultConfig | null> {
+    async selectExternalFolder(): Promise<PureNotesVaultConfig | null> {
         if (this.externalProvider && this.externalProvider.selectFolder) {
             return await this.externalProvider.selectFolder();
         }

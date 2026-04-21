@@ -7,7 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NotesListScreen } from './src/screens/NotesListScreen';
 
 import { SettingsScreen } from './src/screens/SettingsScreen';
-import ObsidianService from './src/services/ObsidianService';
+import PureNotesService from './src/services/PureNotesService';
 import { AppState, Platform } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -37,8 +37,8 @@ export default function App() {
           }
         }
 
-        // Set up deep linking for Obsidian callbacks
-        ObsidianService.setupDeepLinking((_url) => {});
+        // Set up deep linking for PureNotes callbacks
+        PureNotesService.setupDeepLinking((_url) => {});
       } catch (error) {
         console.error('App initialization error:', error);
       }

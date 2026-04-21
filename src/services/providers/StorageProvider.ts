@@ -1,4 +1,4 @@
-import { ObsidianVaultConfig } from '../../types/Note';
+import { PureNotesVaultConfig } from '../../types/Note';
 
 export interface FileStat {
     name: string;
@@ -14,10 +14,10 @@ export interface StorageProvider {
     /** 
      * Pass configuration (e.g., Vault config) to the provider. 
      */
-    setConfig?(config: ObsidianVaultConfig | null): void;
+    setConfig?(config: PureNotesVaultConfig | null): void;
 
     /** Connect/Select external folder if applicable */
-    selectFolder?(): Promise<ObsidianVaultConfig | null>;
+    selectFolder?(): Promise<PureNotesVaultConfig | null>;
 
     /** Verify/Request permission (Web specific) */
     verifyPermission?(): Promise<boolean>;

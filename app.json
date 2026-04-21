@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Obsidian Notes",
-    "slug": "obsidian-notes-app",
+    "name": "PureNotes",
+    "slug": "purenotes-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "obsidiannotes",
+    "scheme": "purenotes",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -14,13 +14,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.obsidiannotes.app",
+      "bundleIdentifier": "com.yybd.purenotes",
       "usesIcloudStorage": true,
       "infoPlist": {
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "obsidiannotes"
+              "purenotes"
             ]
           }
         ],
@@ -30,9 +30,9 @@
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
         "NSUbiquitousContainers": {
-          "iCloud.com.obsidiannotes.app": {
+          "iCloud.com.yybd.purenotes": {
             "NSUbiquitousContainerIsDocumentScopePublic": true,
-            "NSUbiquitousContainerName": "Obsidian Notes"
+            "NSUbiquitousContainerName": "PureNotes"
           }
         }
       }
@@ -42,7 +42,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.obsidiannotes.app",
+      "package": "com.yybd.purenotes",
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
@@ -51,7 +51,7 @@
         {
           "action": "VIEW",
           "data": {
-            "scheme": "obsidiannotes"
+            "scheme": "purenotes"
           }
         }
       ],

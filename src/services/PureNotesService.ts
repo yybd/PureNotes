@@ -1,23 +1,23 @@
-// ObsidianService.ts - Integration with Obsidian via URI scheme
+// PureNotesService.ts - Integration with Obsidian via URI scheme
 
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
-import { ObsidianVaultConfig } from '../types/Note';
+import { PureNotesVaultConfig } from '../types/Note';
 
-class ObsidianService {
-    private vaultConfig: ObsidianVaultConfig | null = null;
+class PureNotesService {
+    private vaultConfig: PureNotesVaultConfig | null = null;
 
     /**
      * Set the vault configuration
      */
-    setVaultConfig(config: ObsidianVaultConfig): void {
+    setVaultConfig(config: PureNotesVaultConfig): void {
         this.vaultConfig = config;
     }
 
     /**
      * Get current vault configuration
      */
-    getVaultConfig(): ObsidianVaultConfig | null {
+    getVaultConfig(): PureNotesVaultConfig | null {
         return this.vaultConfig;
     }
 
@@ -88,7 +88,7 @@ class ObsidianService {
             // Requires "Advanced URI" community plugin installed in Obsidian
             const encodedData = encodeURIComponent(content);
             const encodedPath = encodeURIComponent(filePath);
-            const xSuccess = encodeURIComponent('obsidiannotes://success');
+            const xSuccess = encodeURIComponent('purenotes://success');
 
             uri = `obsidian://advanced-uri?vault=${vaultName}&filepath=${encodedPath}&data=${encodedData}&mode=overwrite&x-success=${xSuccess}`;
 
@@ -103,7 +103,7 @@ class ObsidianService {
             uri = `obsidian://new?vault=${vaultName}&file=${encodedFilePath}&content=${encodedContent}${overwriteParam}${silentParam}`;
         }
 
-        console.log('📝 Obsidian Sync Debug:');
+        console.log('📝 PureNotes Sync Debug:');
         console.log('  Title:', title);
         console.log('  Folder:', this.vaultConfig.folderPath || 'root');
         console.log('  File path:', filePath);
@@ -111,9 +111,6 @@ class ObsidianService {
         if (useAdvancedURI) {
             console.log('  ⚠️  Requires "Advanced URI" plugin in Obsidian!');
         }
-
-
-
 
         try {
             await Linking.openURL(uri);
@@ -186,14 +183,14 @@ class ObsidianService {
     setupDeepLinking(callback: (url: string) => void): void {
         // Listen for incoming URLs (x-callback-url responses)
         const subscription = Linking.addEventListener('url', ({ url }) => {
-            if (url.startsWith('obsidiannotes://')) {
+            if (url.startsWith('purenotes://')) {
                 callback(url);
             }
         });
 
         // Get initial URL if app was opened via deep link
         Linking.getInitialURL().then((url) => {
-            if (url && url.startsWith('obsidiannotes://')) {
+            if (url && url.startsWith('purenotes://')) {
                 callback(url);
             }
         });
@@ -214,8 +211,8 @@ class ObsidianService {
             .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
             .join('&');
 
-        return `obsidiannotes://${action}?${queryParams}`;
+        return `purenotes://${action}?${queryParams}`;
     }
 }
 
-export default new ObsidianService();
+export default new PureNotesService();

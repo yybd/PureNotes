@@ -28,7 +28,7 @@ struct WidgetEntryView : View {
 
     var body: some View {
         // Deep link into the app to add a new note
-        let addUrl = URL(string: "obsidiannotes://add")!
+        let addUrl = URL(string: "purenotes://add")!
         
         Group {
             switch family {
@@ -78,8 +78,8 @@ struct WidgetEntryView : View {
 }
 
 @main
-struct NotesWidget: Widget {
-    let kind: String = "NotesWidget"
+struct PureNotesWidget: Widget {
+    let kind: String = "PureNotesWidget"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in

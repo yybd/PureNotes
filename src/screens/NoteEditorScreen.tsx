@@ -33,8 +33,8 @@ export const NoteEditorScreen = ({ navigation, route }: any) => {
     const insets = useSafeAreaInsets();
     const existingNoteFromRoute = route.params?.note;
     const { createNote, updateNote, settings } = useNotesStore();
-    // [INACTIVE] editorMode — תמיד richtext, בחירת מצב מושבתת
-    const editorMode = 'richtext'; // settings.editorMode || 'richtext';
+    // [INACTIVE] editorMode — תמיד richtext, בחירת מצב מושבתת (אבל משתמשים ב-settings כדי למנוע שגיאות טיפוס)
+    const editorMode = settings.editorMode || 'richtext';
 
     // Parse content immediately to separate frontmatter from body
     // We use a ref or simple const because route params don't change

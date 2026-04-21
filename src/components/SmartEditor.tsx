@@ -89,8 +89,8 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         ref,
     ) => {
         const { settings } = useNotesStore();
-        // [INACTIVE] editorMode — תמיד richtext, בחירת מצב מושבתת
-        const editorMode: 'richtext' | 'markdown' = 'richtext'; // settings.editorMode || 'richtext';
+        // [INACTIVE] editorMode — תמיד richtext, בחירת מצב מושבתת (אבל משתמשים ב-settings כדי למנוע שגיאות טיפוס)
+        const editorMode = settings.editorMode || 'richtext';
 
         const nativeEditorRef = useRef<NativeLiveEditorRef>(null);
         const tiptapEditorRef = useRef<TiptapEditorRef>(null);

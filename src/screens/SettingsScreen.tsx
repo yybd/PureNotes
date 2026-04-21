@@ -1,4 +1,4 @@
-// SettingsScreen.tsx - App settings and Obsidian vault configuration
+// SettingsScreen.tsx - App settings and PureNotes Vault configuration
 
 import React, { useState } from 'react';
 import {
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotesStore } from '../stores/notesStore';
-import ObsidianService from '../services/ObsidianService';
+import PureNotesService from '../services/PureNotesService';
 import StorageService from '../services/StorageService';
 import { ArchiveModal } from '../components/ArchiveModal';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
@@ -66,7 +66,7 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     const handleAutoSyncToggle = (value: boolean) => {
         if (value && !settings.vault?.isConnected) {
-            Alert.alert('שגיאה', 'חבר קודם את ה-Vault של Obsidian');
+            Alert.alert('שגיאה', 'חבר קודם את ה-Vault של PureNotes');
             return;
         }
         updateSettings({ autoSync: value });

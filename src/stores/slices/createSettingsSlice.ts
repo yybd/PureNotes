@@ -1,12 +1,12 @@
 import { StateCreator } from 'zustand';
-import { AppSettings, ObsidianVaultConfig } from '../../types/Note';
+import { AppSettings, PureNotesVaultConfig } from '../../types/Note';
 import StorageService from '../../services/StorageService';
 import { StoreState } from '../notesStore';
 
 export interface SettingsSlice {
     settings: AppSettings;
     updateSettings: (settings: Partial<AppSettings>) => void;
-    setVaultConfig: (config: ObsidianVaultConfig) => void;
+    setVaultConfig: (config: PureNotesVaultConfig) => void;
     reconnectWebVault: () => Promise<void>;
     setEditorMode: (mode: 'markdown' | 'richtext') => void;
 }
@@ -38,7 +38,7 @@ export const createSettingsSlice: StateCreator<
         }
     },
 
-    setVaultConfig: (config: ObsidianVaultConfig) => {
+    setVaultConfig: (config: PureNotesVaultConfig) => {
         const settings = { ...get().settings, vault: config };
         set({ settings });
         StorageService.setConfig(config);

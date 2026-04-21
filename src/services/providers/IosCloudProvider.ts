@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { StorageProvider, FileStat } from './StorageProvider';
-import { ObsidianVaultConfig } from '../../types/Note';
+import { PureNotesVaultConfig } from '../../types/Note';
 
 // Dynamic import to prevent crash on non-iOS
 let CloudFileService: any = null;
@@ -15,7 +15,7 @@ export class IosCloudProvider implements StorageProvider {
         return Platform.OS === 'ios' && CloudFileService !== null;
     }
 
-    async selectFolder(): Promise<ObsidianVaultConfig | null> {
+    async selectFolder(): Promise<PureNotesVaultConfig | null> {
         if (!CloudFileService) throw new Error('Native module not linked');
         const result = await CloudFileService.selectFolder();
         if (result) {

@@ -1,8 +1,16 @@
 import { Platform } from 'react-native';
 import { StorageProvider, FileStat } from './StorageProvider';
-import { ObsidianVaultConfig } from '../../types/Note';
+import { PureNotesVaultConfig } from '../../types/Note';
 
 export class WebStorageProvider implements StorageProvider {
+    private config: PureNotesVaultConfig | null = null;
+
+    name = 'Web Local Storage';
+
+    setConfig(config: PureNotesVaultConfig | null): void {
+        this.config = config;
+    }
+
     isSupported(): boolean {
         return Platform.OS === 'web';
     }
@@ -14,7 +22,7 @@ export class WebStorageProvider implements StorageProvider {
         return WebFileService;
     }
 
-    async selectFolder(): Promise<ObsidianVaultConfig | null> {
+    async selectFolder(): Promise<PureNotesVaultConfig | null> {
         const WebFileService = await this.getWebFileService();
         const directoryName = await WebFileService.selectDirectory();
         if (directoryName) {

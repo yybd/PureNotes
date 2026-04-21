@@ -8,12 +8,12 @@ import { UISlice, createUISlice } from './slices/createUISlice';
 import { SettingsSlice, createSettingsSlice } from './slices/createSettingsSlice';
 import SearchService from '../services/SearchService';
 import StorageService from '../services/StorageService';
-import { Note, AppSettings, ObsidianVaultConfig, DomainType } from '../types/Note';
+import { Note, AppSettings, PureNotesVaultConfig, DomainType } from '../types/Note';
 
 // Define the full store state type
 export type StoreState = DataSlice & UISlice & SettingsSlice & {
-    syncToObsidian: (note: Note) => Promise<void>;
-    importFromObsidian: (uri: string) => Promise<void>;
+    syncToExternal: (note: Note) => Promise<void>;
+    importFromExternal: (uri: string) => Promise<void>;
 };
 
 export const useNotesStore = create<StoreState>()(
@@ -24,12 +24,12 @@ export const useNotesStore = create<StoreState>()(
             ...createSettingsSlice(set, get, api),
 
             // Deprecated: Sync logic is now handled in saveNote via StorageService
-            syncToObsidian: async (note: Note) => {
+            syncToExternal: async (note: Note) => {
                 await StorageService.saveNote(note);
             },
 
             // Import note (Legacy/Manual import still useful)
-            importFromObsidian: async (uri: string) => {
+            importFromExternal: async (uri: string) => {
                 // Implementation can stay similar if we want to copy *into* current storage
             },
         }),

@@ -24,7 +24,7 @@ export interface Note {
   domain?: DomainType;
 }
 
-export interface ObsidianVaultConfig {
+export interface PureNotesVaultConfig {
   vaultName: string;
   folderPath?: string; // Optional folder path within the vault (e.g., "Notes/Mobile")
   vaultDirectoryUri?: string; // Actual file system URI to the vault directory for direct sync
@@ -32,7 +32,7 @@ export interface ObsidianVaultConfig {
 }
 
 export interface AppSettings {
-  vault: ObsidianVaultConfig | null;
+  vault: PureNotesVaultConfig | null;
   autoSync: boolean;
   syncInterval: number; // in minutes
   theme: 'light' | 'dark' | 'auto';

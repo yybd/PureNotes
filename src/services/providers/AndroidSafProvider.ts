@@ -1,21 +1,21 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { StorageProvider, FileStat } from './StorageProvider';
-import { ObsidianVaultConfig } from '../../types/Note';
+import { PureNotesVaultConfig } from '../../types/Note';
 
 export class AndroidSafProvider implements StorageProvider {
-    private config: ObsidianVaultConfig | null = null;
+    private config: PureNotesVaultConfig | null = null;
     private safUriCache: Map<string, string> = new Map();
 
     isSupported(): boolean {
         return Platform.OS === 'android';
     }
 
-    setConfig(config: ObsidianVaultConfig | null): void {
+    setConfig(config: PureNotesVaultConfig | null): void {
         this.config = config;
     }
 
-    async selectFolder(): Promise<ObsidianVaultConfig | null> {
+    async selectFolder(): Promise<PureNotesVaultConfig | null> {
         // @ts-ignore
         const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
         if (permissions.granted) {

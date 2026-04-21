@@ -114,7 +114,7 @@ export const NotesListScreen = ({ navigation }: any) => {
     // Handle deep links (e.g., from iOS Widget)
     useEffect(() => {
         const handleUrl = (url: string | null) => {
-            if (url && url.includes('obsidiannotes://add')) {
+            if (url && url.includes('purenotes://add')) {
                 setShouldOpenQuickAdd(true);
             }
         };

@@ -1,4 +1,4 @@
-# Obsidian Notes App
+# PureNotes
 
 אפליקציית פתקים מודרנית עם אינטגרציה מלאה ל-Obsidian דרך URI scheme.
 
@@ -6,7 +6,7 @@
 
 - ✅ יצירה ועריכה של פתקים בפורמט Markdown
 - ✅ חיפוש מתקדם בכל הפתקים עם Fuzzy Search
-- ✅ סנכרון דו-כיווני עם Obsidian דרך URI
+- ✅ סנכרון דו-כיווני עם Obsidian דרך URI (PureNotes → Obsidian)
 - ✅ תצוגת preview של Markdown
 - ✅ תמיכה בתגיות (hashtags)
 - ✅ ממשק משתמש נקי ומודרני
