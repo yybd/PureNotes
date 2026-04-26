@@ -30,16 +30,16 @@ export default function App() {
             // Delay slightly to ensure UI is ready
             setTimeout(() => {
               alert(
-                'דפדפן לא נתמך\n\n' +
-                'האפליקציה דורשת דפדפן התומך ב-File System Access API (כגון Chrome, Edge, או Opera) כדי לגשת לקבצים במחשב.\n\n' +
-                'ייתכן שחלק מהפונקציות לא יעבדו בדפדפן זה.'
+                'Unsupported Browser\n\n' +
+                'This application requires a browser that supports the File System Access API (such as Chrome, Edge, or Opera) to access files on your computer.\n\n' +
+                'Some features may not work in this browser.'
               );
             }, 1000);
           }
         }
 
         // Set up deep linking for PureNotes callbacks
-        PureNotesService.setupDeepLinking((_url) => {});
+        PureNotesService.setupDeepLinking((_url) => { });
       } catch (error) {
         console.error('App initialization error:', error);
       }
@@ -79,7 +79,7 @@ export default function App() {
             component={NotesListScreen}
             options={{ headerShown: false }}
           />
-<Stack.Screen
+          <Stack.Screen
             name="Settings"
             component={SettingsScreen}
             options={{
