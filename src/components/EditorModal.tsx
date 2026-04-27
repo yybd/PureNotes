@@ -161,7 +161,11 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     return (
         <Modal
             visible={visible}
-            animationType="slide"
+            // "fade" is roughly half the cost of "slide" on the JS+native
+            // bridge while still giving a clean visual transition. The slide
+            // animation interleaves layout work with the WebView mount and
+            // measurably delays the editor becoming interactive.
+            animationType="fade"
             transparent={true}
             onRequestClose={handleClose}
         >

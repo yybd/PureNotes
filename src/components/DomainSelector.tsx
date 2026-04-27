@@ -10,10 +10,11 @@ interface DomainSelectorProps {
     mode?: 'select' | 'filter';
     /** When true, shows only the selected chip and expands on tap. */
     compact?: boolean;
+    domainCounts?: Record<DomainType, number>;
     style?: any;
 }
 
-export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, onSelectDomain, mode = 'select', compact = false, style }) => {
+export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, onSelectDomain, mode = 'select', compact = false, domainCounts, style }) => {
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
 
@@ -68,12 +69,13 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
         >
             {mode === 'filter' && selectedDomain && (
                 <TouchableOpacity
-                    style={[styles.chip, styles.clearChip]}
+                    style={[styles.chip, styles.clearChip, styles.clearChipIconOnly]}
                     onPress={() => onSelectDomain(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                    <Ionicons name="close-circle" size={16} color="#666" />
-                    <Text style={styles.clearText}>{t('clear')}</Text>
+                    <Ionicons name="close-circle" size={22} color="#666" />
                 </TouchableOpacity>
+            )}
             )}
 
             {(Object.keys(DOMAINS) as DomainType[]).map((domain) => {
@@ -87,7 +89,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                             styles.chip,
                             {
                                 borderColor: config.color,
-                                backgroundColor: isSelected ? config.color : config.color + '15',
+                                backgroundColor: isSelected ? config.color : 'transparent',
                             },
                         ]}
                         onPress={() => handleSelect(domain)}
@@ -100,9 +102,15 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                         />
                         <Text style={[
                             styles.label,
-                            isSelected ? { color: '#FFFFFF', fontWeight: '700' } : { color: config.color, fontWeight: '500' },
+                            { color: isSelected ? '#FFFFFF' : config.color, fontWeight: isSelected ? '700' : '500' },
                         ]}>
                             {t(`domain_${domain}`)}
+                            {domainCounts && domainCounts[domain] !== undefined && (
+                                <Text style={[
+                                    styles.countText,
+                                    { color: isSelected ? '#FFFFFF' : config.color }
+                                ]}> ({domainCounts[domain]})</Text>
+                            )}
                         </Text>
                     </TouchableOpacity>
                 );
@@ -174,5 +182,19 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666',
         marginLeft: 4,
+    },
+    clearChipIconOnly: {
+        paddingHorizontal: 8,
+        paddingVertical: 8,
+        borderRadius: 20,
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    countText: {
+        fontSize: 11,
+        opacity: 0.8,
+        fontWeight: 'normal',
     },
 });

@@ -75,7 +75,7 @@ const stripMarkdown = (text: string): string => {
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 };
 
-export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDismissKeyboard, onSync, onArchive, onEditStart, onEditEnd, onEditContentChange, onEditSelectionChange, onStatusChange, externalEditContent, externalIsPinned, maxEditHeight, editorHorizontalInset = 64, autoEdit, forceExitEdit, onEditRequest, onQuickAddRequest, onEditorReady, style }) => {
+const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDismissKeyboard, onSync, onArchive, onEditStart, onEditEnd, onEditContentChange, onEditSelectionChange, onStatusChange, externalEditContent, externalIsPinned, maxEditHeight, editorHorizontalInset = 64, autoEdit, forceExitEdit, onEditRequest, onQuickAddRequest, onEditorReady, style }) => {
     const { t, i18n } = useTranslation();
     // Parse content upfront for autoEdit mode
     const initialParsed = autoEdit ? FrontmatterService.parseFrontmatter(note.content) : null;
@@ -620,6 +620,24 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onD
         </View>
     );
 };
+
+// Custom comparator: re-render only when the note data or value-type props
+// actually change. Callback props (onUpdate, onArchive, etc.) are recreated
+// by the parent on every render — comparing by identity would defeat memo
+// and re-render every card on every keystroke / search input / modal toggle.
+// Style is also intentionally skipped as it is typically an inline object.
+const arePropsEqual = (prev: NoteCardProps, next: NoteCardProps): boolean => {
+    if (prev.note !== next.note) return false;
+    if (prev.externalEditContent !== next.externalEditContent) return false;
+    if (prev.externalIsPinned !== next.externalIsPinned) return false;
+    if (prev.maxEditHeight !== next.maxEditHeight) return false;
+    if (prev.editorHorizontalInset !== next.editorHorizontalInset) return false;
+    if (prev.autoEdit !== next.autoEdit) return false;
+    if (prev.forceExitEdit !== next.forceExitEdit) return false;
+    return true;
+};
+
+export const NoteCard = React.memo(NoteCardImpl, arePropsEqual);
 
 const styles = StyleSheet.create({
     cardShadow: {

@@ -106,6 +106,23 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         const pendingHtmlRef = useRef<string | null>(null);
         const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+        // Mirror the latest HTML the editor emitted, regardless of debounce.
+        // Lets getMarkdown read the freshest content WITHOUT round-tripping
+        // to the WebView (which costs ~10–50ms each call).
+        const latestHtmlRef = useRef<string>('');
+
+        // Memoize the most recent HTML→Markdown conversion so getMarkdown can
+        // skip work entirely when called twice on identical HTML.
+        const conversionCacheRef = useRef<{ html: string; markdown: string } | null>(null);
+
+        const convertAndCache = (html: string): string => {
+            const cached = conversionCacheRef.current;
+            if (cached && cached.html === html) return cached.markdown;
+            const markdown = MarkdownConverterService.htmlToMarkdown(html);
+            conversionCacheRef.current = { html, markdown };
+            return markdown;
+        };
+
         const flushHtmlConversion = useCallback(() => {
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
@@ -114,7 +131,7 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
             const html = pendingHtmlRef.current;
             if (html === null) return;
             pendingHtmlRef.current = null;
-            const markdown = MarkdownConverterService.htmlToMarkdown(html);
+            const markdown = convertAndCache(html);
             onChange?.(markdown);
         }, [onChange]);
 
@@ -126,6 +143,8 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                     debounceTimerRef.current = null;
                 }
                 pendingHtmlRef.current = null;
+                conversionCacheRef.current = null;
+                latestHtmlRef.current = '';
             };
         }, []);
 
@@ -144,14 +163,15 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                         return (await nativeEditorRef.current?.getMarkdown()) || '';
                     }
                     // Cancel any pending debounced conversion — we're about to
-                    // produce a fresh result from the editor's current HTML.
+                    // produce a fresh result from the cached HTML.
                     if (debounceTimerRef.current) {
                         clearTimeout(debounceTimerRef.current);
                         debounceTimerRef.current = null;
                     }
                     pendingHtmlRef.current = null;
-                    const html = await tiptapEditorRef.current?.getHtml() || '';
-                    return MarkdownConverterService.htmlToMarkdown(html);
+                    // Read from the locally-mirrored HTML so we skip the WebView
+                    // round-trip. The conversion itself is memoized.
+                    return convertAndCache(latestHtmlRef.current);
                 },
 
                 focus: () => {
@@ -170,9 +190,12 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                     if (editorMode === 'markdown') {
                         nativeEditorRef.current?.setText?.(text);
                     } else {
-                        tiptapEditorRef.current?.setHtml(
-                            MarkdownConverterService.markdownToHtml(text),
-                        );
+                        const html = MarkdownConverterService.markdownToHtml(text);
+                        // Keep mirrors in sync so a subsequent getMarkdown
+                        // returns the just-set content faithfully.
+                        latestHtmlRef.current = html;
+                        conversionCacheRef.current = { html, markdown: text };
+                        tiptapEditorRef.current?.setHtml(html);
                     }
                 },
 
@@ -180,9 +203,10 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                     if (editorMode === 'markdown') {
                         nativeEditorRef.current?.setTextAndSelection?.(text, sel);
                     } else {
-                        tiptapEditorRef.current?.setHtml(
-                            MarkdownConverterService.markdownToHtml(text),
-                        );
+                        const html = MarkdownConverterService.markdownToHtml(text);
+                        latestHtmlRef.current = html;
+                        conversionCacheRef.current = { html, markdown: text };
+                        tiptapEditorRef.current?.setHtml(html);
                     }
                 },
 
@@ -232,12 +256,25 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         // }
 
         // ── Rich-text mode ─────────────────────────────────────────────────────
-        const initialHtml = MarkdownConverterService.markdownToHtml(initialContent);
+        // Compute initialHtml once per mount instead of every render. This
+        // matters because the parent re-renders on every keystroke, which
+        // previously re-ran markdownToHtml unnecessarily.
+        const initialHtmlRef = useRef<string | null>(null);
+        if (initialHtmlRef.current === null) {
+            const html = MarkdownConverterService.markdownToHtml(initialContent);
+            initialHtmlRef.current = html;
+            // Seed mirrors so getMarkdown can return faithful content even if
+            // the user opens the editor and immediately saves without typing.
+            latestHtmlRef.current = html;
+            conversionCacheRef.current = { html, markdown: initialContent };
+        }
+        const initialHtml = initialHtmlRef.current;
 
-        // Debounce: store the latest HTML in a ref and schedule a single
+        // Debounce: store the latest HTML in refs and schedule a single
         // conversion. Rapid keystrokes collapse into one conversion at the
-        // end of the debounce window. Save paths force-flush via getMarkdown.
+        // end of the debounce window. Save paths read latestHtmlRef directly.
         const handleRichTextChange = (html: string) => {
+            latestHtmlRef.current = html;
             pendingHtmlRef.current = html;
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = setTimeout(flushHtmlConversion, RICHTEXT_CHANGE_DEBOUNCE_MS);

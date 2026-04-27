@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StyleProp, ViewStyle } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,7 @@ const getNodeText = (node: any): string => {
     return text;
 };
 
-export const UnifiedMarkdownDisplay: React.FC<UnifiedMarkdownDisplayProps> = ({ content, onToggleCheckbox, style, numberOfLines }) => {
+const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ content, onToggleCheckbox, style, numberOfLines }) => {
 
     // Checkbox Render Index reference to preserve unique indexes across render
     const checklistRenderIndex = useRef(0);
@@ -37,7 +37,9 @@ export const UnifiedMarkdownDisplay: React.FC<UnifiedMarkdownDisplayProps> = ({ 
     // This allows native syntax block recognition to succeed; styling direction is managed separately below
     const cleanContent = content;
 
-    const rules = {
+    // Memoize rules so the Markdown library can reuse them across renders.
+    // Rebuilt only when one of the actually-referenced inputs changes.
+    const rules = useMemo(() => ({
         // Standard text rule to strip checkbox markers from being displayed
         text: (node: any, children: any, parent: any, ruleStyles: any) => {
             let nodeContent = node.content;
@@ -190,7 +192,7 @@ export const UnifiedMarkdownDisplay: React.FC<UnifiedMarkdownDisplayProps> = ({ 
                 </View>
             );
         },
-    };
+    }), [numberOfLines, onToggleCheckbox]);
 
     return (
         <View style={style}>
@@ -200,6 +202,11 @@ export const UnifiedMarkdownDisplay: React.FC<UnifiedMarkdownDisplayProps> = ({ 
         </View>
     );
 };
+
+// Memo: skip re-render when content/props haven't changed (default shallow
+// compare). Avoids re-parsing markdown when an unrelated NoteCard prop nudges
+// the parent.
+export const UnifiedMarkdownDisplay = React.memo(UnifiedMarkdownDisplayImpl);
 
 const markdownStyles = StyleSheet.create({
     body: {

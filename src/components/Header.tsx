@@ -18,6 +18,7 @@ interface HeaderProps {
     // Domain Filter Props
     currentDomain: DomainType | null;
     onFilterByDomain: (domain: DomainType | null) => void;
+    domainCounts?: Record<DomainType, number>;
     // Visibility
     hideSearchAndDomain?: boolean;
     onLayout?: (y: number, height: number) => void;
@@ -34,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
     isSearchFocused,
     currentDomain,
     onFilterByDomain,
+    domainCounts,
     hideSearchAndDomain,
     onLayout,
     showReconnect,
@@ -72,6 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <DomainSelector
                             selectedDomain={currentDomain}
                             onSelectDomain={onFilterByDomain}
+                            domainCounts={domainCounts}
                             mode="filter"
                         />
                     )}

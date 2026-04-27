@@ -32,6 +32,7 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 export const NotesListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const {
+        notes,
         filteredNotes,
         isLoading,
         error,
@@ -40,7 +41,6 @@ export const NotesListScreen = ({ navigation }: any) => {
         archiveNote,
         createNote,
         updateNote,
-        refreshSort,
         currentDomain,
         filterByDomain,
         settings,
@@ -49,6 +49,13 @@ export const NotesListScreen = ({ navigation }: any) => {
         lockNote,
         unlockNote,
     } = useNotesStore();
+
+    const domainCounts = notes.reduce((acc, note) => {
+        if (note.domain) {
+            acc[note.domain] = (acc[note.domain] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<DomainType, number>);
 
     const [quickNoteText, setQuickNoteText] = useState('');
     const [quickNotePinned, setQuickNotePinned] = useState(false);
@@ -71,7 +78,6 @@ export const NotesListScreen = ({ navigation }: any) => {
     const [editModalTitle, setEditModalTitle] = useState('');
     const [editModalDomain, setEditModalDomain] = useState<DomainType | null>(null);
     const [editModalPinned, setEditModalPinned] = useState(false);
-    const [editModalSaving, setEditModalSaving] = useState(false);
     const editModalOtherFm = useRef<Record<string, any>>({});
     const editModalRef = useRef<EditorModalRef>(null);
 
@@ -436,6 +442,7 @@ export const NotesListScreen = ({ navigation }: any) => {
                 isSearchFocused={isSearchFocused}
                 currentDomain={currentDomain}
                 onFilterByDomain={filterByDomain}
+                domainCounts={domainCounts}
                 hideSearchAndDomain={isQuickNoteActive}
                 showReconnect={Platform.OS === 'web' && !!settings.vault && !isVaultPermissionGranted}
                 onReconnect={reconnectWebVault}
@@ -456,6 +463,15 @@ export const NotesListScreen = ({ navigation }: any) => {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
+                // Virtualization tuning: keep memory + JS work bounded for
+                // large vaults. Render ~10 items per batch and a 10-screen
+                // window. removeClippedSubviews trims native views that have
+                // scrolled out of the viewport.
+                initialNumToRender={8}
+                maxToRenderPerBatch={6}
+                updateCellsBatchingPeriod={50}
+                windowSize={10}
+                removeClippedSubviews={Platform.OS === 'android'}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -515,7 +531,7 @@ export const NotesListScreen = ({ navigation }: any) => {
                 text={editModalBody}
                 domain={editModalDomain}
                 isPinned={editModalPinned}
-                isSaving={editModalSaving}
+                isSaving={false}
                 onTextChange={setEditModalBody}
                 onDomainChange={setEditModalDomain}
                 onPinChange={setEditModalPinned}
