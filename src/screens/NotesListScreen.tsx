@@ -16,7 +16,6 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import { useNotesStore } from '../stores/notesStore';
 import { NoteCard } from '../components/NoteCard';
 import { updateFrontmatter, removeFrontmatterKey } from '../services/FrontmatterService';
@@ -30,41 +29,35 @@ import { EmptyNotesList } from '../components/EmptyNotesList';
 import { Note, DomainType } from '../types/Note';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
-// SVG-based gradient strip. Uses react-native-svg (already a dep) so no
-// native rebuild is required. The "solid" edge sits next to the bar/header
-// and fades to transparent over the list — exactly the look the user asked
-// for: no haze on the side that meets the scrolling content.
-const FADE_COLOR = '#F0F2F5';
+// Stacked-View gradient — a stack of horizontal strips with decreasing
+// rgba alpha builds a smooth fade without depending on SVG (which had
+// inconsistent sizing on iPad/web due to viewBox + preserveAspectRatio
+// interactions). Pure RN primitives, identical behavior on every platform.
+const FADE_COLOR = '240, 242, 245'; // #F0F2F5 in rgb
+const FADE_STEPS = 12;
 const ScrollFade: React.FC<{
     style: any;
     /** Which edge holds the solid color. The opposite edge is transparent. */
     solidEdge: 'top' | 'bottom';
 }> = ({ style, solidEdge }) => {
-    // SVG y axis runs top→bottom. To place the solid edge on top: stop @0=opaque, @1=transparent.
-    // To place it on bottom: stop @0=transparent, @1=opaque.
-    const topOpacity = solidEdge === 'top' ? 1 : 0;
-    const bottomOpacity = solidEdge === 'top' ? 0 : 1;
-    // useId gives a stable, instance-unique gradient id — required on web,
-    // where multiple <Svg> elements live in the same DOM and would otherwise
-    // collide on `id="fade"` (the browser silently picks the first defs).
-    const gradientId = React.useId();
     return (
-        <Svg
-            style={style}
-            preserveAspectRatio="none"
-            viewBox="0 0 1 1"
-            width="100%"
-            height="100%"
-            pointerEvents="none"
-        >
-            <Defs>
-                <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor={FADE_COLOR} stopOpacity={topOpacity} />
-                    <Stop offset="1" stopColor={FADE_COLOR} stopOpacity={bottomOpacity} />
-                </SvgLinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="1" height="1" fill={`url(#${gradientId})`} />
-        </Svg>
+        <View style={style} pointerEvents="none">
+            {Array.from({ length: FADE_STEPS }).map((_, i) => {
+                // Strip 0 sits at the top; strip N-1 at the bottom. Compute
+                // its alpha based on which edge should be solid.
+                const fromTop = i / (FADE_STEPS - 1);
+                const alpha = solidEdge === 'top' ? 1 - fromTop : fromTop;
+                return (
+                    <View
+                        key={i}
+                        style={{
+                            flex: 1,
+                            backgroundColor: `rgba(${FADE_COLOR}, ${alpha})`,
+                        }}
+                    />
+                );
+            })}
+        </View>
     );
 };
 

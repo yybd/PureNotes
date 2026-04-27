@@ -1,0 +1,36 @@
+# Native build outputs — Vercel only needs the web bundle.
+ios/
+android/
+modules/
+*.xcworkspace/
+*.xcodeproj/
+
+# CocoaPods
+ios/Pods/
+ios/Podfile.lock
+
+# Native build artifacts
+*.apk
+*.aab
+*.ipa
+
+# Local dev
+.expo/
+.expo-shared/
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Tests / coverage
+coverage/
+__tests__/
+__mocks__/

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
 import { SearchBar } from './SearchBar';
 import { DomainSelector } from './DomainSelector';
@@ -42,10 +43,15 @@ export const Header: React.FC<HeaderProps> = ({
     onReconnect,
 }) => {
     const { t } = useTranslation();
+    const insets = useSafeAreaInsets();
+    // Replace the hardcoded paddingTop: 60 (which was a magic number for the
+    // iOS status bar) with the actual top safe-area inset. On web/desktop
+    // insets.top is 0, so the bar is no longer awkwardly tall there.
+    const headerPaddingTop = Math.max(insets.top, 12);
     return (
         <View onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.y, e.nativeEvent.layout.height) : undefined}>
             {/* Top Bar */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
                 <TouchableOpacity onPress={onSettingsPress} style={styles.iconButton}>
                     <Ionicons name="settings-outline" size={24} color="#1A1A1A" />
                 </TouchableOpacity>
@@ -90,7 +96,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 60,
+        // paddingTop is now applied inline from useSafeAreaInsets so the bar
+        // is the right height on iOS (status bar + notch), Android, and web.
         paddingBottom: 16,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
