@@ -50,8 +50,17 @@ export interface EditorModalProps {
     onTextChange: (text: string) => void;
     onDomainChange: (domain: DomainType | null) => void;
     onPinChange: (isPinned: boolean) => void;
-    onSave: () => void;
-    onClose: () => void;
+    /**
+     * Save handler. Receives the freshest markdown content read directly from
+     * the editor — preferred over reading from props/state which may lag the
+     * editor by up to one debounce cycle (150ms) while the user is typing.
+     */
+    onSave: (content?: string) => void;
+    /**
+     * Close handler. Same freshness guarantee as onSave for consumers that
+     * auto-save on close.
+     */
+    onClose: (content?: string) => void;
     /** If true, domain is required before saving (shows toast). */
     requireDomain?: boolean;
     /** Optional title field (for editing existing notes). */
@@ -119,18 +128,34 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         },
     }), []);
 
-    const handleSave = () => {
+    // Pull the freshest markdown directly from the editor instead of relying
+    // on parent state (which may lag by one debounce cycle while typing).
+    const captureFreshContent = async (): Promise<string | undefined> => {
+        try {
+            return await editorRef.current?.getMarkdown?.();
+        } catch (e) {
+            console.warn('captureFreshContent failed', e);
+            return undefined;
+        }
+    };
+
+    const handleSave = async () => {
         if (requireDomain && !domain) {
             setShowDomainToast(true);
             setTimeout(() => setShowDomainToast(false), 1500);
             return;
         }
-        onSave();
+        const fresh = await captureFreshContent();
+        // Keep parent state in sync (best-effort) for the next render cycle.
+        if (fresh !== undefined && fresh !== text) onTextChange(fresh);
+        onSave(fresh);
     };
 
-    const handleClose = () => {
+    const handleClose = async () => {
         editorRef.current?.blur?.();
-        onClose();
+        const fresh = await captureFreshContent();
+        if (fresh !== undefined && fresh !== text) onTextChange(fresh);
+        onClose(fresh);
     };
 
     return (

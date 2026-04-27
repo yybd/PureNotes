@@ -4,13 +4,19 @@
 // Parents always receive / provide raw Markdown strings — the conversion to/from
 // HTML is handled internally here.
 
-import React, { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
 import { StyleProp, TextStyle } from 'react-native';
 import type { EditorBridge } from '@10play/tentap-editor';
 import { NativeLiveEditor, NativeLiveEditorRef } from './NativeLiveEditor';
 import { TiptapEditor, TiptapEditorRef } from './TiptapEditor';
 import { useNotesStore } from '../stores/notesStore';
 import MarkdownConverterService from '../services/MarkdownConverterService';
+
+// Debounce window for HTML→Markdown conversion while the user is actively
+// typing. The conversion is expensive (regex + node-html-markdown) and
+// should not block every keystroke. getMarkdown() force-flushes the latest
+// content, so save paths always read fresh data.
+const RICHTEXT_CHANGE_DEBOUNCE_MS = 150;
 
 // ─── Public ref interface ────────────────────────────────────────────────────
 
@@ -95,6 +101,34 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         const nativeEditorRef = useRef<NativeLiveEditorRef>(null);
         const tiptapEditorRef = useRef<TiptapEditorRef>(null);
 
+        // Pending HTML payload from Tiptap waiting to be converted to markdown.
+        // Held in a ref so a fast typist doesn't trigger a conversion per keystroke.
+        const pendingHtmlRef = useRef<string | null>(null);
+        const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+        const flushHtmlConversion = useCallback(() => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+            }
+            const html = pendingHtmlRef.current;
+            if (html === null) return;
+            pendingHtmlRef.current = null;
+            const markdown = MarkdownConverterService.htmlToMarkdown(html);
+            onChange?.(markdown);
+        }, [onChange]);
+
+        // Cleanup timer on unmount to avoid stray conversions on a stale component.
+        useEffect(() => {
+            return () => {
+                if (debounceTimerRef.current) {
+                    clearTimeout(debounceTimerRef.current);
+                    debounceTimerRef.current = null;
+                }
+                pendingHtmlRef.current = null;
+            };
+        }, []);
+
         // Notify parent when the Tiptap WebView is ready
         useEffect(() => {
             if (editorMode !== 'richtext') return;
@@ -109,6 +143,13 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                     if (editorMode === 'markdown') {
                         return (await nativeEditorRef.current?.getMarkdown()) || '';
                     }
+                    // Cancel any pending debounced conversion — we're about to
+                    // produce a fresh result from the editor's current HTML.
+                    if (debounceTimerRef.current) {
+                        clearTimeout(debounceTimerRef.current);
+                        debounceTimerRef.current = null;
+                    }
+                    pendingHtmlRef.current = null;
                     const html = await tiptapEditorRef.current?.getHtml() || '';
                     return MarkdownConverterService.htmlToMarkdown(html);
                 },
@@ -193,9 +234,13 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         // ── Rich-text mode ─────────────────────────────────────────────────────
         const initialHtml = MarkdownConverterService.markdownToHtml(initialContent);
 
-        const handleRichTextChange = async (html: string) => {
-            const markdown = MarkdownConverterService.htmlToMarkdown(html);
-            onChange?.(markdown);
+        // Debounce: store the latest HTML in a ref and schedule a single
+        // conversion. Rapid keystrokes collapse into one conversion at the
+        // end of the debounce window. Save paths force-flush via getMarkdown.
+        const handleRichTextChange = (html: string) => {
+            pendingHtmlRef.current = html;
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = setTimeout(flushHtmlConversion, RICHTEXT_CHANGE_DEBOUNCE_MS);
         };
 
         return (

@@ -258,8 +258,12 @@ export const NotesListScreen = ({ navigation }: any) => {
     };
 
     // Send quick note
-    const handleSendNote = async () => {
-        const text = quickNoteText.trim();
+    // `freshContent` (when provided) is the editor's live content captured by
+    // EditorModal — preferred over quickNoteText state which may trail the
+    // editor by one debounce cycle (~150ms) while typing.
+    const handleSendNote = async (freshContent?: string) => {
+        const sourceText = freshContent !== undefined ? freshContent : quickNoteText;
+        const text = sourceText.trim();
         if (!text || isSending) return;
 
         if (!quickNoteDomain) {
@@ -270,36 +274,37 @@ export const NotesListScreen = ({ navigation }: any) => {
             return;
         }
 
+        // Build content snapshot upfront so UI can be cleared immediately
+        const lines = text.split('\n');
+        const firstLine = lines[0];
+        if (!firstLine.startsWith('#')) {
+            lines[0] = '# ' + firstLine;
+        }
+        let formattedText = lines.join('\n');
+
+        if (quickNotePinned) {
+            formattedText = updateFrontmatter(formattedText, 'pinned', true);
+        }
+        if (quickNoteDomain) {
+            formattedText = updateFrontmatter(formattedText, 'domain', quickNoteDomain);
+        }
+
+        const filename = generateFilename();
+
+        // Optimistic UI: clear input + dismiss keyboard immediately so the
+        // user gets instant feedback. Persistence happens in the background.
         setIsSending(true);
+        Keyboard.dismiss();
+        quickAddInputRef.current?.blur();
+        quickAddInputRef.current?.clear();
+        setQuickNoteText('');
+        setQuickNotePinned(false);
+        setQuickNoteDomain(null);
+        AsyncStorage.removeItem('quickNoteDraft').catch(() => {});
 
         try {
-            const lines = text.split('\n');
-            const firstLine = lines[0];
-            if (!firstLine.startsWith('#')) {
-                lines[0] = '# ' + firstLine;
-            }
-            let formattedText = lines.join('\n');
-
-            if (quickNotePinned) {
-                formattedText = updateFrontmatter(formattedText, 'pinned', true);
-            }
-
-            if (quickNoteDomain) {
-                formattedText = updateFrontmatter(formattedText, 'domain', quickNoteDomain);
-            }
-
-            const filename = generateFilename();
+            // createNote already updates the store, so no extra loadNotes() needed.
             await createNote(filename, formattedText);
-
-            Keyboard.dismiss();
-            quickAddInputRef.current?.blur();
-            quickAddInputRef.current?.clear();
-            setQuickNoteText('');
-            setQuickNotePinned(false);
-            setQuickNoteDomain(null);
-            AsyncStorage.removeItem('quickNoteDraft').catch(() => {});
-
-            await loadNotes();
         } catch (error) {
             console.error('Error creating quick note:', error);
         } finally {
@@ -339,43 +344,52 @@ export const NotesListScreen = ({ navigation }: any) => {
     }, [editModalVisible, editModalNote, lockNote, unlockNote]);
 
     // ── Save edited note from modal ──────────────────────────────────────
-    const handleEditModalSave = async () => {
+    // Optimistic: builds content snapshot, closes modal immediately, then
+    // persists in the background. updateNote already updates the store, so
+    // refreshSort() / loadNotes() are not needed on this path.
+    // `freshBody` (when provided) is the editor's live content captured by
+    // EditorModal — preferred over editModalBody state which may trail the
+    // editor by one debounce cycle (~150ms) while typing.
+    const handleEditModalSave = (freshBody?: string) => {
         if (!editModalNote) return;
-        setEditModalSaving(true);
 
-        try {
-            // Reconstruct body with title as first line
-            let body = editModalBody;
-            if (editModalTitle.trim()) {
-                body = '# ' + editModalTitle.trim() + '\n' + body;
-            }
+        // Snapshot all values before clearing modal state
+        const noteToSave = editModalNote;
+        const titleSnapshot = editModalTitle;
+        const bodySnapshot = freshBody !== undefined ? freshBody : editModalBody;
+        const domainSnapshot = editModalDomain;
+        const pinnedSnapshot = editModalPinned;
+        const otherFmSnapshot = editModalOtherFm.current;
 
-            let fullContent = FrontmatterService.composeContent(
-                { ...editModalOtherFm.current, domain: editModalDomain },
-                body
-            );
-
-            if (editModalPinned) {
-                fullContent = updateFrontmatter(fullContent, 'pinned', true);
-            } else {
-                fullContent = removeFrontmatterKey(fullContent, 'pinned');
-            }
-
-            await updateNote(editModalNote.id, editModalNote.filePath, fullContent);
-
-            setEditModalVisible(false);
-            refreshSort();
-            await loadNotes();
-        } catch (error) {
-            console.error('Error saving edited note:', error);
-        } finally {
-            setEditModalSaving(false);
+        // Reconstruct body with title as first line
+        let body = bodySnapshot;
+        if (titleSnapshot.trim()) {
+            body = '# ' + titleSnapshot.trim() + '\n' + body;
         }
+
+        let fullContent = FrontmatterService.composeContent(
+            { ...otherFmSnapshot, domain: domainSnapshot },
+            body
+        );
+
+        if (pinnedSnapshot) {
+            fullContent = updateFrontmatter(fullContent, 'pinned', true);
+        } else {
+            fullContent = removeFrontmatterKey(fullContent, 'pinned');
+        }
+
+        // Close modal immediately for instant UI response
+        setEditModalVisible(false);
+
+        // Persist in background — store update happens inside updateNote
+        updateNote(noteToSave.id, noteToSave.filePath, fullContent).catch((error) => {
+            console.error('Error saving edited note:', error);
+        });
     };
 
-    const handleEditModalClose = () => {
-        // Auto-save on close
-        handleEditModalSave();
+    const handleEditModalClose = (freshBody?: string) => {
+        // Auto-save on close, using fresh content from the editor when available
+        handleEditModalSave(freshBody);
     };
 
     const renderRightActions = (_progress: any, _dragX: any, item: Note) => {

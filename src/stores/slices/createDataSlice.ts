@@ -5,6 +5,24 @@ import SearchService from '../../services/SearchService';
 import { updateFrontmatter, removeFrontmatterKey } from '../../services/FrontmatterService';
 import { StoreState } from '../notesStore';
 
+// Defer the (expensive) Fuse index rebuild off the critical save path.
+// Multiple successive calls within the same tick collapse into one init.
+// Safe to use only when no active search query depends on the immediate index.
+let pendingInitNotes: Note[] | null = null;
+let initScheduled = false;
+const scheduleSearchInit = (notes: Note[]) => {
+    pendingInitNotes = notes;
+    if (initScheduled) return;
+    initScheduled = true;
+    setTimeout(() => {
+        initScheduled = false;
+        if (pendingInitNotes) {
+            SearchService.initialize(pendingInitNotes);
+            pendingInitNotes = null;
+        }
+    }, 0);
+};
+
 export interface DataSlice {
     notes: Note[];
     filteredNotes: Note[];
@@ -142,7 +160,8 @@ export const createDataSlice: StateCreator<
 
             const savedNote = await StorageService.saveNote(newNote);
             const notes = [savedNote, ...get().notes];
-            SearchService.initialize(notes);
+            // No active search at note-create time → defer Fuse index rebuild.
+            scheduleSearchInit(notes);
             set({ notes, filteredNotes: notes, isLoading: false });
 
             return savedNote;
@@ -197,17 +216,19 @@ export const createDataSlice: StateCreator<
                 });
             }
 
-            SearchService.initialize(notes);
-
             const { searchQuery, selectedTag } = get();
             let filtered = notes;
             if (searchQuery) {
+                // Active search needs a fresh index synchronously.
+                SearchService.initialize(notes);
                 const results = SearchService.search(searchQuery);
                 filtered = results.map((r) => r.note);
             } else if (selectedTag) {
                 filtered = SearchService.filterByTag(notes, selectedTag);
+                scheduleSearchInit(notes);
             } else {
                 filtered = notes;
+                scheduleSearchInit(notes);
             }
 
             set({ notes, filteredNotes: filtered });
