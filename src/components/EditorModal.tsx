@@ -266,46 +266,61 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                             )}
                         </View>
 
-                        {/* Domain selector — placed below the editor so the
-                            user picks a domain right before sending. */}
+                        {/* Domain selector + Send. Domain takes the available
+                            space; send sits at the trailing edge so the user
+                            picks the domain right next to the action button. */}
                         <View style={styles.domainSelectorRow}>
-                            <DomainSelector
-                                selectedDomain={domain}
-                                onSelectDomain={onDomainChange}
-                                mode="select"
-                                compact={compactDomain}
-                            />
-                        </View>
-
-                        {/* Toolbar + Save */}
-                        <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
-                            {editorBridge ? (
-                                <TiptapToolbar
-                                    editor={editorBridge}
-                                    onPinPress={() => onPinChange(!isPinned)}
-                                    isPinned={isPinned}
-                                    onDismiss={handleClose}
+                            <View style={styles.domainSelectorFill}>
+                                <DomainSelector
+                                    selectedDomain={domain}
+                                    onSelectDomain={onDomainChange}
+                                    mode="select"
+                                    compact={compactDomain}
+                                    // Override the ScrollView's bottom margin
+                                    // (which would otherwise pull the chips up
+                                    // 4 px relative to the centered send button).
+                                    style={{ marginBottom: 0 }}
                                 />
-                            ) : null}
-
+                            </View>
                             <TouchableOpacity
                                 style={[styles.sendButtonModal, (!text.trim() || isSaving) && styles.sendButtonDisabled]}
                                 onPress={handleSave}
                                 disabled={!text.trim() || isSaving}
+                                // Visual button is small (matches chip height)
+                                // but the touch target is expanded to ~44 px
+                                // for thumb-friendly tapping per Apple HIG.
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
                                 {isSaving
                                     ? <ActivityIndicator size="small" color="#FFFFFF" />
-                                    : <Ionicons name="send" size={20} color="#FFFFFF" />}
+                                    : <Ionicons name="send" size={16} color="#FFFFFF" />}
                             </TouchableOpacity>
                         </View>
 
-                        {/* Domain validation toast */}
-                        {showDomainToast && (
-                            <View style={styles.domainToast}>
-                                <Text style={styles.domainToastText}>{t('select_domain_before_save')}</Text>
-                            </View>
-                        )}
                     </View>
+
+                    {/* Toolbar — outside modalSheet so it spans the FULL
+                        screen width on wide displays (web/tablet) instead of
+                        being awkwardly capped at the 720 px content rail. */}
+                    {editorBridge && (
+                        <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
+                            <TiptapToolbar
+                                editor={editorBridge}
+                                onPinPress={() => onPinChange(!isPinned)}
+                                isPinned={isPinned}
+                                onDismiss={handleClose}
+                            />
+                        </View>
+                    )}
+
+                    {/* Domain validation toast — absolute positioned so it
+                        floats above everything regardless of where it sits in
+                        the tree. */}
+                    {showDomainToast && (
+                        <View style={styles.domainToast}>
+                            <Text style={styles.domainToastText}>{t('select_domain_before_save')}</Text>
+                        </View>
+                    )}
                 </KeyboardAvoidingView>
             </View>
         </Modal>
@@ -334,13 +349,22 @@ const styles = StyleSheet.create({
     },
     domainSelectorRow: {
         flexDirection: 'row',
+        // Force LTR layout so the send button stays on the trailing edge
+        // (right) regardless of locale — matches the previous bottomBar.
+        direction: 'ltr',
         alignItems: 'center',
-        justifyContent: 'space-between',
         // Match the editor window's gray surround (modalSheet background) so
         // the row blends seamlessly with the area surrounding the editor.
         backgroundColor: '#F0F2F5',
         paddingHorizontal: 16,
         paddingVertical: 8,
+        gap: 8,
+    },
+    // Wraps DomainSelector so it grows to fill the row, leaving the send
+    // button at the trailing edge instead of stretching across.
+    domainSelectorFill: {
+        flex: 1,
+        minWidth: 0,
     },
     titleContainer: {
         backgroundColor: '#FFFFFF',
@@ -382,20 +406,25 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         direction: 'ltr',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        // Center the toolbar group within the full-width strip — looks much
+        // cleaner on wide screens where the bar would otherwise hug the left
+        // edge below the centered content rail.
+        justifyContent: 'center',
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#E0E0E0',
         paddingHorizontal: 4,
     },
     sendButtonModal: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        // Matches the height of the domain chips (paddingVertical:8 + ~14
+        // line-height ≈ 32 px) so the row reads as a single row of pills.
+        // Touch target is expanded via hitSlop on the TouchableOpacity.
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: '#000000',
         justifyContent: 'center',
         alignItems: 'center',
-        marginHorizontal: 8,
     },
     sendButtonDisabled: {
         backgroundColor: '#E8E8E8',

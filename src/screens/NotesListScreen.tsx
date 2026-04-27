@@ -16,7 +16,7 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BlurView } from 'expo-blur';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import { useNotesStore } from '../stores/notesStore';
 import { NoteCard } from '../components/NoteCard';
 import { updateFrontmatter, removeFrontmatterKey } from '../services/FrontmatterService';
@@ -29,6 +29,44 @@ import { EditorModal, EditorModalRef } from '../components/EditorModal';
 import { EmptyNotesList } from '../components/EmptyNotesList';
 import { Note, DomainType } from '../types/Note';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+
+// SVG-based gradient strip. Uses react-native-svg (already a dep) so no
+// native rebuild is required. The "solid" edge sits next to the bar/header
+// and fades to transparent over the list — exactly the look the user asked
+// for: no haze on the side that meets the scrolling content.
+const FADE_COLOR = '#F0F2F5';
+const ScrollFade: React.FC<{
+    style: any;
+    /** Which edge holds the solid color. The opposite edge is transparent. */
+    solidEdge: 'top' | 'bottom';
+}> = ({ style, solidEdge }) => {
+    // SVG y axis runs top→bottom. To place the solid edge on top: stop @0=opaque, @1=transparent.
+    // To place it on bottom: stop @0=transparent, @1=opaque.
+    const topOpacity = solidEdge === 'top' ? 1 : 0;
+    const bottomOpacity = solidEdge === 'top' ? 0 : 1;
+    // useId gives a stable, instance-unique gradient id — required on web,
+    // where multiple <Svg> elements live in the same DOM and would otherwise
+    // collide on `id="fade"` (the browser silently picks the first defs).
+    const gradientId = React.useId();
+    return (
+        <Svg
+            style={style}
+            preserveAspectRatio="none"
+            viewBox="0 0 1 1"
+            width="100%"
+            height="100%"
+            pointerEvents="none"
+        >
+            <Defs>
+                <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={FADE_COLOR} stopOpacity={topOpacity} />
+                    <Stop offset="1" stopColor={FADE_COLOR} stopOpacity={bottomOpacity} />
+                </SvgLinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="1" height="1" fill={`url(#${gradientId})`} />
+        </Svg>
+    );
+};
 
 export const NotesListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -496,12 +534,10 @@ export const NotesListScreen = ({ navigation }: any) => {
                     }, 100);
                 }}
             />
-                <BlurView
-                    intensity={60}
-                    tint="light"
-                    style={styles.topBlur}
-                    pointerEvents="none"
-                />
+                {/* Top fade: solid gray at the very top (touching the
+                    Header), transparent at the bottom edge so the list
+                    shows through cleanly while scrolling under it. */}
+                <ScrollFade style={styles.topBlur} solidEdge="top" />
             </View>
 
             {/* Bottom Section - Quick Note Input */}
@@ -515,15 +551,10 @@ export const NotesListScreen = ({ navigation }: any) => {
                             : { bottom: 0 }
                     ]}
                 >
-                    {/* Blur strip above the bar so notes fade as they scroll
-                        under it. Anchored to the bar's top edge so it always
-                        sits in the right spot regardless of safe area. */}
-                    <BlurView
-                        intensity={60}
-                        tint="light"
-                        style={styles.bottomBlur}
-                        pointerEvents="none"
-                    />
+                    {/* Bottom fade: solid gray at the very bottom (touching
+                        the QuickAdd bar), transparent at the top edge so the
+                        list dissolves into it without a hard line. */}
+                    <ScrollFade style={styles.bottomBlur} solidEdge="bottom" />
                     <QuickAddInput
                         ref={quickAddInputRef}
                         text={quickNoteText}

@@ -156,8 +156,14 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     row: {
+        // flexGrow:1 ensures the row fills the ScrollView width when buttons
+        // are narrower than the bar, so justifyContent can actually center
+        // them. When buttons exceed the width the scroll still works because
+        // flexGrow does not shrink content below its natural size.
+        flexGrow: 1,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         paddingVertical: 4,
         paddingHorizontal: 8,
         gap: 4,
