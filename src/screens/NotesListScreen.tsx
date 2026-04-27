@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     View,
     FlatList,
@@ -29,6 +30,7 @@ import { Note, DomainType } from '../types/Note';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 export const NotesListScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const {
         filteredNotes,
         isLoading,
@@ -383,7 +385,7 @@ export const NotesListScreen = ({ navigation }: any) => {
                 onPress={() => handleArchive(item)}
             >
                 <Ionicons name="archive-outline" size={24} color="#FFF" />
-                <Text style={styles.archiveText}>לארכיון</Text>
+                <Text style={styles.archiveText}>{t('to_archive')}</Text>
             </TouchableOpacity>
         );
     };
@@ -411,7 +413,7 @@ export const NotesListScreen = ({ navigation }: any) => {
         <View style={styles.container}>
             {/* Header / Search & Domain */}
             <Header
-                title="הפתקים שלי"
+                title={t('main_title')}
                 onSettingsPress={handleSettings}
                 onSearch={searchNotes}
                 onSearchFocus={() => setIsSearchFocused(true)}
@@ -520,7 +522,7 @@ export const NotesListScreen = ({ navigation }: any) => {
             {/* Validation Toast */}
             {showToast && (
                 <View style={styles.toast}>
-                    <Text style={styles.toastText}>יש לבחור תחום לפני השמירה</Text>
+                    <Text style={styles.toastText}>{t('select_domain_before_save')}</Text>
                 </View>
             )}
         </View>

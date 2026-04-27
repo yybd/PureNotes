@@ -7,6 +7,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { DomainType } from '../types/Note';
 import { EditorModal, EditorModalRef } from './EditorModal';
 
@@ -44,6 +45,7 @@ export const QuickAddInput = forwardRef<QuickAddInputRef, QuickAddInputProps>(({
     onFocus,
     onBlur,
 }, ref) => {
+    const { t } = useTranslation();
     const [modalVisible, setModalVisible] = useState(false);
     const editorModalRef = useRef<EditorModalRef>(null);
 
@@ -85,7 +87,7 @@ export const QuickAddInput = forwardRef<QuickAddInputRef, QuickAddInputProps>(({
                     activeOpacity={0.7}
                 >
                     <Text style={previewText ? styles.previewText : styles.placeholder} numberOfLines={1}>
-                        {previewText ?? ''}
+                        {previewText ?? t('add_note_placeholder')}
                     </Text>
                 </TouchableOpacity>
 

@@ -1,5 +1,6 @@
 // App.tsx - Main application with navigation
 
+import './src/i18n';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';

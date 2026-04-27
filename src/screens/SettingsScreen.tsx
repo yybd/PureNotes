@@ -11,6 +11,7 @@ import {
     Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useNotesStore } from '../stores/notesStore';
 import PureNotesService from '../services/PureNotesService';
 import StorageService from '../services/StorageService';
@@ -18,6 +19,7 @@ import { ArchiveModal } from '../components/ArchiveModal';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
 
 export const SettingsScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const { settings, updateSettings, setVaultConfig /* [INACTIVE] setEditorMode */ } = useNotesStore();
     const [vaultName, setVaultName] = useState(settings.vault?.vaultName || '');
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
@@ -36,24 +38,24 @@ export const SettingsScreen = ({ navigation }: any) => {
                 StorageService.setConfig(vaultConfig);
 
                 Alert.alert(
-                    'הצלחה ✅',
-                    `תיקייה נבחרה בהצלחה!\n\n📁 ${vaultConfig.vaultName}\n\n✨ כעת תוכל לכתוב ולקרוא ישירות מהתיקייה!`
+                    t('success'),
+                    t('folder_selected_success', { name: vaultConfig.vaultName })
                 );
             }
         } catch (error) {
             console.error('Error selecting vault:', error);
-            Alert.alert('שגיאה', 'לא ניתן לבחור תיקייה');
+            Alert.alert(t('error'), t('cannot_select_folder'));
         }
     };
 
     const handleDisconnectVault = () => {
         Alert.alert(
-            'ניתוק',
-            `האם לנתק את ה - Vault "${settings.vault?.vaultName}" ? `,
+            t('disconnect'),
+            t('disconnect_vault_confirm', { name: settings.vault?.vaultName }),
             [
-                { text: 'ביטול', style: 'cancel' },
+                { text: t('cancel'), style: 'cancel' },
                 {
-                    text: 'נתק',
+                    text: t('disconnect_action'),
                     style: 'destructive',
                     onPress: () => {
                         setVaultConfig({ vaultName: '', isConnected: false });
@@ -66,7 +68,7 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     const handleAutoSyncToggle = (value: boolean) => {
         if (value && !settings.vault?.isConnected) {
-            Alert.alert('שגיאה', 'חבר קודם את ה-Vault של PureNotes');
+            Alert.alert(t('error'), t('connect_vault_first'));
             return;
         }
         updateSettings({ autoSync: value });
@@ -79,28 +81,28 @@ export const SettingsScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>הגדרות</Text>
+                <Text style={styles.headerTitle}>{t('settings')}</Text>
                 <View style={styles.placeholder} />
             </View>
 
             {/* Storage Configuration */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>מיקום האחסון</Text>
+                <Text style={styles.sectionTitle}>{t('storage_location')}</Text>
 
                 {!settings.vault?.isConnected ? (
                     <>
                         <View style={styles.storageCard}>
                             <Ionicons name="phone-portrait-outline" size={24} color="#666" />
                             <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Text style={styles.storageTitle}>אחסון מקומי</Text>
-                                <Text style={styles.storageDesc}>הפתקים נשמרים על המכשיר בלבד.</Text>
+                                <Text style={styles.storageTitle}>{t('local_storage')}</Text>
+                                <Text style={styles.storageDesc}>{t('local_storage_desc')}</Text>
                             </View>
                             <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                         </View>
 
-                        <Text style={styles.sectionSubtitle}>חיבור לענן / חיצוני</Text>
+                        <Text style={styles.sectionSubtitle}>{t('cloud_storage_connection')}</Text>
                         <Text style={styles.description}>
-                            ניתן לחבר תיקייה חיצונית (כמו iCloud Drive) כדי שהפתקים ישמרו ישירות שם ויסונכרנו עם המחשב.
+                            {t('cloud_storage_desc')}
                         </Text>
 
                         <TouchableOpacity
@@ -109,7 +111,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         >
                             <Ionicons name="folder-open" size={20} color="#FFFFFF" />
                             <Text style={styles.buttonText}>
-                                {Platform.OS === 'ios' ? 'בחר תיקיית iCloud Drive' : 'בחר תיקייה חיצונית'}
+                                {Platform.OS === 'ios' ? t('select_icloud_drive') : t('select_external_folder')}
                             </Text>
                         </TouchableOpacity>
                     </>
@@ -118,7 +120,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         <View style={styles.storageCard}>
                             <Ionicons name="cloud-outline" size={24} color="#6200EE" />
                             <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Text style={styles.storageTitle}>אחסון חיצוני מחובר</Text>
+                                <Text style={styles.storageTitle}>{t('connected_external_storage')}</Text>
                                 <Text style={styles.storageDesc} numberOfLines={1}>
                                     {settings.vault.vaultName}
                                 </Text>
@@ -138,12 +140,12 @@ export const SettingsScreen = ({ navigation }: any) => {
                         >
                             <Ionicons name="log-out-outline" size={20} color="#03A9F4" />
                             <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
-                                חזור לאחסון מקומי
+                                {t('back_to_local_storage')}
                             </Text>
                         </TouchableOpacity>
 
                         <Text style={styles.hint}>
-                            💡 הפתקים נשמרים ומתעדכנים ישירות בתיקייה שנבחרה.
+                            {t('notes_saved_in_folder_hint')}
                         </Text>
                     </>
                 )}
@@ -198,9 +200,9 @@ export const SettingsScreen = ({ navigation }: any) => {
 
             {/* Archive Settings */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>ארכיון</Text>
+                <Text style={styles.sectionTitle}>{t('archive')}</Text>
                 <Text style={styles.description}>
-                    פתקים שהעברת לארכיון ישמרו כאן. ניתן למחוק אותם לצמיתות או לשחזר אותם לרשימה.
+                    {t('manage_archive')}
                 </Text>
 
                 <TouchableOpacity
@@ -209,17 +211,17 @@ export const SettingsScreen = ({ navigation }: any) => {
                 >
                     <Ionicons name="archive-outline" size={20} color="#03A9F4" />
                     <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
-                        ניהול ארכיון הפתקים
+                        {t('manage_archive')}
                     </Text>
                 </TouchableOpacity>
             </View>
 
             {/* App Info */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>אודות</Text>
-                <Text style={styles.infoText}>גרסה: 1.1.0 (Direct Storage)</Text>
+                <Text style={styles.sectionTitle}>{t('about')}</Text>
+                <Text style={styles.infoText}>{t('version', { version: '1.1.0' })}</Text>
                 <Text style={styles.infoText}>
-                    הפתקים שלך, איפה שאתה רוצה אותם.
+                    {t('app_mission')}
                 </Text>
             </View>
 

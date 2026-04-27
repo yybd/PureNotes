@@ -14,6 +14,7 @@ import {
     ActivityIndicator,
     StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -80,6 +81,7 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     showTitle = false,
     compactDomain = false,
 }, ref) => {
+    const { t } = useTranslation();
     const [showDomainToast, setShowDomainToast] = useState(false);
     const [editorBridge, setEditorBridge] = useState<EditorBridge | null>(null);
     const [editorInstance, setEditorInstance] = useState<SmartEditorRef | null>(null);
@@ -165,7 +167,7 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                                     style={[styles.titleInput, { writingDirection: 'auto', textAlign: 'auto' }]}
                                     value={title}
                                     onChangeText={onTitleChange}
-                                    placeholder="כותרת הפתק"
+                                    placeholder={t('title_placeholder')}
                                     placeholderTextColor="#999"
                                 />
                             </View>
@@ -209,7 +211,7 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                         {/* Domain validation toast */}
                         {showDomainToast && (
                             <View style={styles.domainToast}>
-                                <Text style={styles.domainToastText}>יש לבחור תחום לפני השמירה</Text>
+                                <Text style={styles.domainToastText}>{t('select_domain_before_save')}</Text>
                             </View>
                         )}
                     </View>

@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
     useWindowDimensions
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
 import StorageService from '../services/StorageService';
@@ -24,6 +25,7 @@ interface ArchiveModalProps {
 }
 
 export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) => {
+    const { t } = useTranslation();
     const [archivedNotes, setArchivedNotes] = useState<Note[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
             setArchivedNotes(notes);
         } catch (error) {
             console.error('Error fetching archived notes:', error);
-            Alert.alert('שגיאה', 'לא ניתן לטעון את הארכיון');
+            Alert.alert(t('error'), t('cannot_load_archive'));
         } finally {
             setIsLoading(false);
         }
@@ -56,18 +58,18 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
             loadNotes(); // Refresh main list
         } catch (error) {
             console.error('Error restoring note:', error);
-            Alert.alert('שגיאה', 'לא ניתן לשחזר את הפתק');
+            Alert.alert(t('error'), t('cannot_restore_note'));
         }
     };
 
     const handleDeleteForever = (note: Note) => {
         Alert.alert(
-            'מחיקה לצמיתות',
-            'האם אתה בטוח שברצונך למחוק פתק זה לצמיתות? לא ניתן לשחזר פעולה זו.',
+            t('delete_forever_title'),
+            t('delete_forever_confirm'),
             [
-                { text: 'ביטול', style: 'cancel' },
+                { text: t('cancel'), style: 'cancel' },
                 {
-                    text: 'מחק',
+                    text: t('delete_action'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -75,7 +77,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
                             setArchivedNotes(prev => prev.filter(n => n.id !== note.id));
                         } catch (error) {
                             console.error('Error deleting note forever:', error);
-                            Alert.alert('שגיאה', 'לא ניתן למחוק את הפתק');
+                            Alert.alert(t('error'), t('cannot_delete_note'));
                         }
                     }
                 }
@@ -85,12 +87,12 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
 
     const handleEmptyArchive = () => {
         Alert.alert(
-            'ריקון ארכיון',
-            'האם אתה בטוח שברצונך למחוק את כל הפתקים שבארכיון לצמיתות? לא ניתן לשחזר פעולה זו.',
+            t('empty_archive_title'),
+            t('empty_archive_confirm'),
             [
-                { text: 'ביטול', style: 'cancel' },
+                { text: t('cancel'), style: 'cancel' },
                 {
-                    text: 'מחק הכל',
+                    text: t('delete_all'),
                     style: 'destructive',
                     onPress: async () => {
                         setIsLoading(true);
@@ -99,7 +101,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
                             setArchivedNotes([]);
                         } catch (error) {
                             console.error('Error emptying archive:', error);
-                            Alert.alert('שגיאה', 'לא ניתן לרוקן את הארכיון');
+                            Alert.alert(t('error'), t('cannot_empty_archive'));
                         } finally {
                             setIsLoading(false);
                         }
@@ -159,7 +161,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <Ionicons name="close" size={24} color="#1A1A1A" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>ארכיון פתקים</Text>
+                        <Text style={styles.headerTitle}>{t('archive_title')}</Text>
                         <View style={styles.headerPlaceholder} />
                     </View>
 
@@ -170,7 +172,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
                     ) : archivedNotes.length === 0 ? (
                         <View style={styles.centerContainer}>
                             <Ionicons name="archive-outline" size={64} color="#CCC" />
-                            <Text style={styles.emptyText}>הארכיון ריק</Text>
+                            <Text style={styles.emptyText}>{t('archive_empty')}</Text>
                         </View>
                     ) : (
                         <>
@@ -186,7 +188,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
                                     onPress={handleEmptyArchive}
                                 >
                                     <Ionicons name="trash-bin-outline" size={20} color="#FFFFFF" />
-                                    <Text style={styles.emptyArchiveText}>מחק הכל</Text>
+                                    <Text style={styles.emptyArchiveText}>{t('delete_all')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </>

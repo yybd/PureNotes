@@ -14,6 +14,7 @@ import {
     ActivityIndicator,
     StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SmartEditor, SmartEditorRef } from '../components/SmartEditor';
 import { MarkdownToolbar } from '../components/MarkdownToolbar';
@@ -29,6 +30,7 @@ import { appendChecklistItem, handleListContinuation } from '../utils/markdownUt
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 export const NoteEditorScreen = ({ navigation, route }: any) => {
+    const { t } = useTranslation();
     // Safe Area Insets for bottom padding
     const insets = useSafeAreaInsets();
     const existingNoteFromRoute = route.params?.note;
@@ -243,7 +245,7 @@ export const NoteEditorScreen = ({ navigation, route }: any) => {
                 <TouchableOpacity onPress={handleBack} style={styles.headerButton}>
                     <Ionicons name="arrow-back" size={24} color="#6200EE" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>עריכת פתק</Text>
+                <Text style={styles.headerTitle}>{t('edit_note')}</Text>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <TouchableOpacity
@@ -285,7 +287,7 @@ export const NoteEditorScreen = ({ navigation, route }: any) => {
                     ]}
                     value={title}
                     onChangeText={setTitle}
-                    placeholder="כותרת הפתק"
+                    placeholder={t('title_placeholder')}
                     placeholderTextColor="#999"
                 />
             </View>

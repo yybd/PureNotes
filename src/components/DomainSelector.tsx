@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DomainType, DOMAINS } from '../types/Note';
 
@@ -13,6 +14,7 @@ interface DomainSelectorProps {
 }
 
 export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, onSelectDomain, mode = 'select', compact = false, style }) => {
+    const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
 
     const isCollapsible = compact;
@@ -36,7 +38,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                     >
                         <Ionicons name="chevron-down" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
                         <Ionicons name={config.icon as any} size={16} color="#FFFFFF" style={styles.icon} />
-                        <Text style={[styles.label, { color: '#FFFFFF', fontWeight: '700' }]}>{config.label}</Text>
+                        <Text style={[styles.label, { color: '#FFFFFF', fontWeight: '700' }]}>{t(`domain_${selectedDomain}`)}</Text>
                     </TouchableOpacity>
                 </View>
             );
@@ -49,7 +51,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                 >
                     <Ionicons name="chevron-down" size={14} color="#999" style={{ marginRight: 4 }} />
                     <Ionicons name="pricetag-outline" size={16} color="#999" style={styles.icon} />
-                    <Text style={[styles.label, { color: '#999' }]}>בחר תחום</Text>
+                    <Text style={[styles.label, { color: '#999' }]}>{t('select_domain')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -70,7 +72,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                     onPress={() => onSelectDomain(null)}
                 >
                     <Ionicons name="close-circle" size={16} color="#666" />
-                    <Text style={styles.clearText}>ניקוי</Text>
+                    <Text style={styles.clearText}>{t('clear')}</Text>
                 </TouchableOpacity>
             )}
 
@@ -100,7 +102,7 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                             styles.label,
                             isSelected ? { color: '#FFFFFF', fontWeight: '700' } : { color: config.color, fontWeight: '500' },
                         ]}>
-                            {config.label}
+                            {t(`domain_${domain}`)}
                         </Text>
                     </TouchableOpacity>
                 );

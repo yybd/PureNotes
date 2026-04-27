@@ -17,6 +17,7 @@ import {
     ViewStyle,
     Alert,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Note, DOMAINS, DomainType } from '../types/Note';
 import { useNotesStore } from '../stores/notesStore';
@@ -75,6 +76,7 @@ const stripMarkdown = (text: string): string => {
 };
 
 export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDismissKeyboard, onSync, onArchive, onEditStart, onEditEnd, onEditContentChange, onEditSelectionChange, onStatusChange, externalEditContent, externalIsPinned, maxEditHeight, editorHorizontalInset = 64, autoEdit, forceExitEdit, onEditRequest, onQuickAddRequest, onEditorReady, style }) => {
+    const { t, i18n } = useTranslation();
     // Parse content upfront for autoEdit mode
     const initialParsed = autoEdit ? FrontmatterService.parseFrontmatter(note.content) : null;
 
@@ -187,7 +189,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onD
 
     // Format timestamp
     const formatTimestamp = (date: Date) => {
-        return date.toLocaleDateString('he-IL', {
+        const locale = i18n.language === 'he' ? 'he-IL' : 'en-US';
+        return date.toLocaleDateString(locale, {
             day: 'numeric',
             month: 'short',
             year: 'numeric',
@@ -344,12 +347,12 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onD
 
     const handleDeleteCompleted = () => {
         Alert.alert(
-            'מחיקת פריטים שבוצעו',
-            'האם אתה בטוח שברצונך למחוק את כל הפריטים המסומנים?',
+            t('delete_completed_title'),
+            t('delete_completed_confirm'),
             [
-                { text: 'בטל', style: 'cancel' },
+                { text: t('cancel'), style: 'cancel' },
                 {
-                    text: 'מחק',
+                    text: t('delete_action'),
                     style: 'destructive',
                     onPress: () => {
                         const lines = note.content.split('\n');
@@ -425,7 +428,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onD
                                 styles.domainText,
                                 note.domain && DOMAINS[note.domain] ? { color: DOMAINS[note.domain].color } : styles.domainEditPlaceholder
                             ]}>
-                                {note.domain && DOMAINS[note.domain] ? DOMAINS[note.domain].label : '+ תחום'}
+                                {note.domain ? t(`domain_${note.domain}`) : t('add_domain')}
                             </Text>
                         </TouchableOpacity>
                     )}

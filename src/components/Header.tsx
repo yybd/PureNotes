@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
 import { SearchBar } from './SearchBar';
@@ -38,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
     showReconnect,
     onReconnect,
 }) => {
+    const { t } = useTranslation();
     return (
         <View onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.y, e.nativeEvent.layout.height) : undefined}>
             {/* Top Bar */}
@@ -50,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
                     {showReconnect && (
                         <TouchableOpacity onPress={onReconnect} style={styles.reconnectBadge}>
                             <Ionicons name="refresh-circle-outline" size={16} color="#FFFFFF" />
-                            <Text style={styles.reconnectText}>חבר מחדש</Text>
+                            <Text style={styles.reconnectText}>{t('reconnect')}</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -64,6 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onSearch={onSearch}
                         onFocus={onSearchFocus}
                         onBlur={onSearchBlur}
+                        placeholder={t('search_placeholder')}
                     />
                     {!isSearchFocused && (
                         <DomainSelector
