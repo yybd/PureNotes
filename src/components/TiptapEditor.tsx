@@ -204,6 +204,14 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
                 document.body.setAttribute('dir', 'auto');
             `);
             onReady?.();
+            // Explicit focus once the editor is genuinely ready. The bridge's
+            // built-in `autofocus` option is set during mount but can lose the
+            // race with the modal animation on a cold WebView — by the time
+            // Tiptap is ready to accept focus, the autofocus pulse is already
+            // gone, leaving the user staring at an editor with no caret.
+            if (autoFocus) {
+                editor.focus();
+            }
         // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [editorState.isReady]);
 

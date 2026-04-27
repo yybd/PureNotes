@@ -33,6 +33,16 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// Short, snappy layout animation. The built-in `easeInEaseOut` preset runs
+// at 500ms which feels sluggish for tap-to-expand and edit-state toggles.
+// Cutting to ~200ms keeps the visual feedback while feeling instant.
+const SHORT_LAYOUT_ANIMATION = {
+    duration: 200,
+    create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    update: { type: LayoutAnimation.Types.easeInEaseOut },
+    delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+} as const;
+
 interface NoteCardProps {
     note: Note;
     onPress?: () => void;
@@ -214,7 +224,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
             return;
         }
 
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        LayoutAnimation.configureNext(SHORT_LAYOUT_ANIMATION);
         setIsExpanded(!isExpanded);
     };
 
@@ -225,7 +235,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
             return;
         }
 
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        LayoutAnimation.configureNext(SHORT_LAYOUT_ANIMATION);
 
         editStartedRef.current = true;   // Guard against handlePress firing after
         pendingFocusRef.current = true;  // Will be consumed by onLayout
@@ -248,7 +258,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
         if (isEditing && fullContent !== note.content) {
             onUpdate(fullContent);
         }
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        LayoutAnimation.configureNext(SHORT_LAYOUT_ANIMATION);
         setIsEditing(false);
         setIsExpanded(false);
         onEditEnd?.(); // Notify end of editing
@@ -273,7 +283,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
             onUpdate(fullContent);
         }
 
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        LayoutAnimation.configureNext(SHORT_LAYOUT_ANIMATION);
         setIsEditing(false);
         setIsExpanded(false);
         onEditEnd?.(); // Notify end of editing
@@ -319,7 +329,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
             return;
         }
 
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        LayoutAnimation.configureNext(SHORT_LAYOUT_ANIMATION);
 
         // Parse the note and immediately append a new checklist item
         const parsed = FrontmatterService.parseFrontmatter(note.content);
@@ -362,7 +372,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
                         const filteredLines = lines.filter(line => !checkedRegex.test(line));
 
                         if (filteredLines.length !== lines.length) {
-                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            LayoutAnimation.configureNext(SHORT_LAYOUT_ANIMATION);
                             onUpdate(filteredLines.join('\n'));
                         }
                     }
@@ -408,7 +418,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
             onPress={handlePress}
             onLongPress={handleLongPress}
             activeOpacity={0.9}
-            delayLongPress={500}
+            delayLongPress={250}
         >
             <View style={styles.cardInner}>
                 {/* Timestamp, sync status, Done button, and Pin indicator */}

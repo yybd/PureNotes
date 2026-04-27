@@ -120,6 +120,21 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         }
     }, [visible]);
 
+    // Defer mounting the (heavy) SmartEditor until the modal's fade animation
+    // has had a chance to start. Mounting the WebView synchronously with the
+    // modal becoming visible competes with the animation thread and causes the
+    // first-open jank. ~80ms is enough for the fade to begin paint while still
+    // letting the editor be ready before the user can move their finger to type.
+    const [shouldMountEditor, setShouldMountEditor] = useState(false);
+    useEffect(() => {
+        if (!visible) {
+            setShouldMountEditor(false);
+            return;
+        }
+        const id = setTimeout(() => setShouldMountEditor(true), 80);
+        return () => clearTimeout(id);
+    }, [visible]);
+
     React.useImperativeHandle(ref, () => ({
         clear: () => { editorRef.current?.setText?.(''); },
         setTextAndSelection: (t, sel) => { editorRef.current?.setTextAndSelection?.(t, sel); },
@@ -204,15 +219,17 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
 
                         {/* Editor fills remaining space */}
                         <View style={styles.editorArea}>
-                            <SmartEditor
-                                ref={handleEditorRef}
-                                initialContent={text}
-                                onChange={onTextChange}
-                                placeholder=""
-                                autoFocus={true}
-                                backgroundColor="#FFFFFF"
-                                style={{ flex: 1 }}
-                            />
+                            {shouldMountEditor && (
+                                <SmartEditor
+                                    ref={handleEditorRef}
+                                    initialContent={text}
+                                    onChange={onTextChange}
+                                    placeholder=""
+                                    autoFocus={true}
+                                    backgroundColor="#FFFFFF"
+                                    style={{ flex: 1 }}
+                                />
+                            )}
                         </View>
 
                         {/* Toolbar + Save */}

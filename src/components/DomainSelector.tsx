@@ -76,7 +76,6 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                     <Ionicons name="close-circle" size={22} color="#666" />
                 </TouchableOpacity>
             )}
-            )}
 
             {(Object.keys(DOMAINS) as DomainType[]).map((domain) => {
                 const config = DOMAINS[domain];

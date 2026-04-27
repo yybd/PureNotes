@@ -25,6 +25,7 @@ import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
 import { Header } from '../components/Header';
 import { QuickAddInput, QuickAddInputRef } from '../components/QuickAddInput';
 import { EditorModal, EditorModalRef } from '../components/EditorModal';
+import { EditorPrewarm } from '../components/EditorPrewarm';
 import { EmptyNotesList } from '../components/EmptyNotesList';
 import { Note, DomainType } from '../types/Note';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -556,6 +557,10 @@ export const NotesListScreen = ({ navigation }: any) => {
                     <Text style={styles.toastText}>{t('select_domain_before_save')}</Text>
                 </View>
             )}
+
+            {/* Hidden Tiptap warm-up: removes the cold-start lag the first
+                time the user opens the editor in a fresh app session. */}
+            <EditorPrewarm />
         </View>
     );
 };
