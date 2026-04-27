@@ -9,6 +9,7 @@ import {
     ScrollView,
     Alert,
     Platform,
+    Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +24,10 @@ export const SettingsScreen = ({ navigation }: any) => {
     const { settings, updateSettings, setVaultConfig /* [INACTIVE] setEditorMode */ } = useNotesStore();
     const [vaultName, setVaultName] = useState(settings.vault?.vaultName || '');
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
+    // Custom-styled disconnect confirmation. Replaces Alert.alert which is
+    // unreliable on react-native-web (the auto-converted browser confirm
+    // could be auto-dismissed by some browsers and didn't fire onPress).
+    const [isDisconnectConfirmVisible, setIsDisconnectConfirmVisible] = useState(false);
 
     const handleSelectVaultDirectory = async () => {
         try {
@@ -37,10 +42,9 @@ export const SettingsScreen = ({ navigation }: any) => {
                 setVaultConfig(vaultConfig);
                 StorageService.setConfig(vaultConfig);
 
-                Alert.alert(
-                    t('success'),
-                    t('folder_selected_success', { name: vaultConfig.vaultName })
-                );
+                // Title is the confirmation, body is just the folder name —
+                // no redundant "Success" header or marketing text.
+                Alert.alert(t('folder_selected_success'), vaultConfig.vaultName);
             }
         } catch (error) {
             console.error('Error selecting vault:', error);
@@ -49,21 +53,16 @@ export const SettingsScreen = ({ navigation }: any) => {
     };
 
     const handleDisconnectVault = () => {
-        Alert.alert(
-            t('disconnect'),
-            t('disconnect_vault_confirm', { name: settings.vault?.vaultName }),
-            [
-                { text: t('cancel'), style: 'cancel' },
-                {
-                    text: t('disconnect_action'),
-                    style: 'destructive',
-                    onPress: () => {
-                        setVaultConfig({ vaultName: '', isConnected: false });
-                        setVaultName('');
-                    },
-                },
-            ]
-        );
+        // Open a custom-styled confirmation modal instead of Alert.alert —
+        // the native alert behaves inconsistently on react-native-web and
+        // doesn't visually match the rest of the app on any platform.
+        setIsDisconnectConfirmVisible(true);
+    };
+
+    const performDisconnect = () => {
+        setVaultConfig({ vaultName: '', isConnected: false });
+        setVaultName('');
+        setIsDisconnectConfirmVisible(false);
     };
 
     const handleAutoSyncToggle = (value: boolean) => {
@@ -91,16 +90,25 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                 {!settings.vault?.isConnected ? (
                     <>
-                        <View style={styles.storageCard}>
-                            <Ionicons name="phone-portrait-outline" size={24} color="#666" />
-                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Text style={styles.storageTitle}>{t('local_storage')}</Text>
-                                <Text style={styles.storageDesc}>{t('local_storage_desc')}</Text>
-                            </View>
-                            <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                        </View>
+                        {/* On web there's no "internal" vs "external" — the
+                            browser only has the user's chosen folder. Hide the
+                            local-storage card + the dual-option framing, and
+                            show just a single folder picker. */}
+                        {Platform.OS !== 'web' && (
+                            <>
+                                <View style={styles.storageCard}>
+                                    <Ionicons name="phone-portrait-outline" size={24} color="#666" />
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={styles.storageTitle}>{t('local_storage')}</Text>
+                                        <Text style={styles.storageDesc}>{t('local_storage_desc')}</Text>
+                                    </View>
+                                    <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                                </View>
 
-                        <Text style={styles.sectionSubtitle}>{t('cloud_storage_connection')}</Text>
+                                <Text style={styles.sectionSubtitle}>{t('cloud_storage_connection')}</Text>
+                            </>
+                        )}
+
                         <Text style={styles.description}>
                             {t('cloud_storage_desc')}
                         </Text>
@@ -111,7 +119,11 @@ export const SettingsScreen = ({ navigation }: any) => {
                         >
                             <Ionicons name="folder-open" size={20} color="#FFFFFF" />
                             <Text style={styles.buttonText}>
-                                {Platform.OS === 'ios' ? t('select_icloud_drive') : t('select_external_folder')}
+                                {Platform.OS === 'ios'
+                                    ? t('select_icloud_drive')
+                                    : Platform.OS === 'web'
+                                        ? t('select_folder_web')
+                                        : t('select_external_folder')}
                             </Text>
                         </TouchableOpacity>
                     </>
@@ -120,7 +132,11 @@ export const SettingsScreen = ({ navigation }: any) => {
                         <View style={styles.storageCard}>
                             <Ionicons name="cloud-outline" size={24} color="#000000" />
                             <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Text style={styles.storageTitle}>{t('connected_external_storage')}</Text>
+                                <Text style={styles.storageTitle}>
+                                    {Platform.OS === 'web'
+                                        ? t('connected_folder_web')
+                                        : t('connected_external_storage')}
+                                </Text>
                                 <Text style={styles.storageDesc} numberOfLines={1}>
                                     {settings.vault.vaultName}
                                 </Text>
@@ -140,7 +156,9 @@ export const SettingsScreen = ({ navigation }: any) => {
                         >
                             <Ionicons name="log-out-outline" size={20} color="#03A9F4" />
                             <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
-                                {t('back_to_local_storage')}
+                                {Platform.OS === 'web'
+                                    ? t('disconnect_folder_web')
+                                    : t('back_to_local_storage')}
                             </Text>
                         </TouchableOpacity>
 
@@ -227,6 +245,43 @@ export const SettingsScreen = ({ navigation }: any) => {
                 visible={isArchiveVisible}
                 onClose={() => setIsArchiveVisible(false)}
             />
+
+            {/* Custom disconnect confirmation — matches app style and works
+                reliably on every platform (unlike Alert.alert on web). */}
+            <Modal
+                visible={isDisconnectConfirmVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsDisconnectConfirmVisible(false)}
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    style={styles.confirmBackdrop}
+                    onPress={() => setIsDisconnectConfirmVisible(false)}
+                >
+                    {/* Stop the inner card from receiving the backdrop tap. */}
+                    <TouchableOpacity activeOpacity={1} onPress={() => {}} style={styles.confirmDialog}>
+                        <Text style={styles.confirmTitle}>{t('disconnect')}</Text>
+                        <Text style={styles.confirmMessage}>
+                            {t('disconnect_vault_confirm', { name: settings.vault?.vaultName })}
+                        </Text>
+                        <View style={styles.confirmButtonsRow}>
+                            <TouchableOpacity
+                                style={[styles.confirmBtn, styles.confirmBtnCancel]}
+                                onPress={() => setIsDisconnectConfirmVisible(false)}
+                            >
+                                <Text style={styles.confirmBtnCancelText}>{t('cancel')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.confirmBtn, styles.confirmBtnDestructive]}
+                                onPress={performDisconnect}
+                            >
+                                <Text style={styles.confirmBtnDestructiveText}>{t('disconnect_action')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
         </ScrollView>
     );
 };
@@ -346,5 +401,66 @@ const styles = StyleSheet.create({
         fontFamily: 'monospace',
         marginBottom: 16,
         textAlign: 'center',
+    },
+    // ── Disconnect confirmation modal ────────────────────────────────────
+    confirmBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    confirmDialog: {
+        width: '100%',
+        maxWidth: 360,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+        elevation: 6,
+    },
+    confirmTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1A1A1A',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    confirmMessage: {
+        fontSize: 14,
+        color: '#555',
+        lineHeight: 20,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    confirmButtonsRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    confirmBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmBtnCancel: {
+        backgroundColor: '#F0F0F0',
+    },
+    confirmBtnCancelText: {
+        color: '#1A1A1A',
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    confirmBtnDestructive: {
+        backgroundColor: '#000000',
+    },
+    confirmBtnDestructiveText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '600',
     },
 });
