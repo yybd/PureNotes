@@ -41,10 +41,8 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                 setVaultConfig(vaultConfig);
                 StorageService.setConfig(vaultConfig);
-
-                // Title is the confirmation, body is just the folder name —
-                // no redundant "Success" header or marketing text.
-                Alert.alert(t('folder_selected_success'), vaultConfig.vaultName);
+                // No success popup — the connected-folder card on this screen
+                // is enough confirmation.
             }
         } catch (error) {
             console.error('Error selecting vault:', error);
@@ -117,7 +115,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                             style={[styles.button, styles.buttonPrimary]}
                             onPress={handleSelectVaultDirectory}
                         >
-                            <Ionicons name="folder-open" size={20} color="#FFFFFF" />
+                            <Ionicons name="folder-open" size={20} color="#000000" />
                             <Text style={styles.buttonText}>
                                 {Platform.OS === 'ios'
                                     ? t('select_icloud_drive')
@@ -154,7 +152,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                             style={[styles.button, styles.buttonSecondary]}
                             onPress={handleDisconnectVault}
                         >
-                            <Ionicons name="log-out-outline" size={20} color="#03A9F4" />
+                            <Ionicons name="log-out-outline" size={20} color="#000000" />
                             <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
                                 {Platform.OS === 'web'
                                     ? t('disconnect_folder_web')
@@ -224,7 +222,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                     style={[styles.button, styles.buttonSecondary]}
                     onPress={() => setIsArchiveVisible(true)}
                 >
-                    <Ionicons name="archive-outline" size={20} color="#03A9F4" />
+                    <Ionicons name="archive-outline" size={20} color="#000000" />
                     <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
                         {t('manage_archive')}
                     </Text>
@@ -289,7 +287,8 @@ export const SettingsScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9F9F9',
+        // Match main screen so the gray "wings" on wide screens are uniform.
+        backgroundColor: '#F0F2F5',
     },
     header: {
         flexDirection: 'row',
@@ -317,6 +316,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         padding: 20,
         marginTop: 16,
+        // Cap the readable width on wide screens (web/tablet) so settings
+        // controls don't stretch edge-to-edge — matches the 720 px rail used
+        // throughout the rest of the app.
+        width: '100%',
+        maxWidth: 720,
+        alignSelf: 'center',
     },
     sectionTitle: {
         fontSize: 18,
@@ -337,26 +342,33 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         lineHeight: 20,
     },
+    // Unified minimalist button — white surface, thin black outline, black
+    // text/icon. Used for every action in this screen so the visual language
+    // stays consistent and modern.
     button: {
         flexDirection: 'row',
-        backgroundColor: '#000000',
-        padding: 14,
+        gap: 8,
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#000000',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
     },
-    buttonSecondary: {
-        backgroundColor: '#E1F5FE',
-    },
+    // Kept as no-op aliases so existing JSX keeps compiling without per-call
+    // edits — the visual style is now driven entirely by `button`.
+    buttonPrimary: {},
+    buttonSecondary: {},
     buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
+        color: '#000000',
+        fontSize: 15,
         fontWeight: '600',
-        marginLeft: 8,
     },
     buttonTextSecondary: {
-        color: '#03A9F4',
+        color: '#000000',
     },
     infoText: {
         fontSize: 14,
@@ -369,9 +381,6 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         textAlign: 'center',
         marginTop: 8,
-    },
-    buttonPrimary: {
-        backgroundColor: '#000000',
     },
     storageCard: {
         flexDirection: 'row',
@@ -446,20 +455,21 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
+        // Same minimalist outline as the rest of the screen — black border,
+        // white surface, black text. The text labels carry meaning, not color.
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#000000',
     },
-    confirmBtnCancel: {
-        backgroundColor: '#F0F0F0',
-    },
+    confirmBtnCancel: {},
     confirmBtnCancelText: {
-        color: '#1A1A1A',
+        color: '#000000',
         fontSize: 15,
         fontWeight: '600',
     },
-    confirmBtnDestructive: {
-        backgroundColor: '#000000',
-    },
+    confirmBtnDestructive: {},
     confirmBtnDestructiveText: {
-        color: '#FFFFFF',
+        color: '#000000',
         fontSize: 15,
         fontWeight: '600',
     },

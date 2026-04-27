@@ -207,6 +207,25 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         onClose(fresh);
     };
 
+    // Web only: Cmd/Ctrl+S triggers the same flow as the send button. Held
+    // in a ref so the listener always calls the latest handleSave (which
+    // closes over current `text`/`domain`) without needing to re-attach
+    // the global listener on every render.
+    const handleSaveRef = useRef(handleSave);
+    handleSaveRef.current = handleSave;
+    useEffect(() => {
+        if (Platform.OS !== 'web' || !visible) return;
+        if (typeof window === 'undefined') return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+                e.preventDefault();
+                handleSaveRef.current();
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [visible]);
+
     return (
         <Modal
             visible={visible}
@@ -241,8 +260,10 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                             </View>
                         )}
 
-                        {/* Editor fills remaining space */}
-                        <View style={styles.editorArea}>
+                        {/* Editor fills remaining space. When the title card
+                            is showing, sit close to it (8 px gap); otherwise
+                            keep the original 20 px breathing room. */}
+                        <View style={[styles.editorArea, !showTitle && styles.editorAreaNoTitle]}>
                             {shouldMountEditor && (
                                 <SmartEditor
                                     ref={handleEditorRef}
@@ -293,7 +314,18 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                             >
                                 {isSaving
                                     ? <ActivityIndicator size="small" color="#FFFFFF" />
-                                    : <Ionicons name="send" size={16} color="#FFFFFF" />}
+                                    : (
+                                        <Ionicons
+                                            name="send"
+                                            size={16}
+                                            // Icon stays visible in the disabled
+                                            // (no-text-yet) state — black on the
+                                            // light gray surface — and flips to
+                                            // white once the button is active on
+                                            // the black surface.
+                                            color={!text.trim() ? '#000000' : '#FFFFFF'}
+                                        />
+                                    )}
                             </TouchableOpacity>
                         </View>
 
@@ -366,11 +398,14 @@ const styles = StyleSheet.create({
         flex: 1,
         minWidth: 0,
     },
+    // Title card — same horizontal inset and rounded corners as the editor
+    // card below, so they read as a matched pair on the gray surround.
     titleContainer: {
         backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        paddingHorizontal: 20,
+        marginHorizontal: 20,
+        marginTop: 20,
+        borderRadius: 12,
+        paddingHorizontal: 16,
         paddingVertical: 12,
     },
     titleInput: {
@@ -381,13 +416,24 @@ const styles = StyleSheet.create({
     },
     editorArea: {
         flex: 1,
-        margin: 20,
+        // Match titleContainer's horizontal inset. The 4 px top keeps the
+        // title and editor reading as a single tight pair when both are
+        // shown; the no-title fallback below uses a larger top inset so the
+        // editor doesn't crowd the top of the modal in QuickAdd mode.
+        marginHorizontal: 20,
+        marginTop: 4,
+        marginBottom: 20,
         borderRadius: 12,
         backgroundColor: '#FFFFFF',
         overflow: 'hidden',
         // The "Border Trick"
         borderWidth: 1,
         borderColor: '#FFFFFF',
+    },
+    // No-title flow (QuickAdd) — give the editor card more breathing room
+    // above so it doesn't hug the top of the modal.
+    editorAreaNoTitle: {
+        marginTop: 32,
     },
     editorLoader: {
         // Sits on top of the (still-empty) editor area while the WebView and

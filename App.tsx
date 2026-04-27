@@ -39,6 +39,14 @@ export default function App() {
   // Lazy initializer — only runs once on mount.
   const [platformSupported] = useState<boolean>(() => isWebPlatformSupported());
 
+  // Set the browser tab title on web for the unsupported-browser screen.
+  // Inside NavigationContainer we use its documentTitle prop instead, since
+  // react-navigation otherwise overwrites document.title with the active
+  // screen name (e.g. "NotesList") on every navigation event.
+  if (!platformSupported && Platform.OS === 'web' && typeof document !== 'undefined') {
+    document.title = 'PureNotes';
+  }
+
   useEffect(() => {
     // Skip all init on unsupported browsers — the app won't render anyway.
     if (!platformSupported) return;
@@ -89,7 +97,14 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="auto" />
-      <NavigationContainer>
+      <NavigationContainer
+        documentTitle={{
+          // Hard-pin the browser tab title — without this, react-navigation
+          // would replace document.title with the active screen name (e.g.
+          // "NotesList" / "Settings") on every navigation event.
+          formatter: () => 'PureNotes',
+        }}
+      >
         <Stack.Navigator
           screenOptions={{
             headerStyle: { backgroundColor: '#FFFFFF' },
