@@ -40,7 +40,7 @@
   "save": "Save",
   "edit_note": "Edit Note",
   "title_placeholder": "Title (optional)",
-  "archive_title": "Notes Archive",
+  "archive_title": "Archive",
   "archive_empty": "Archive is empty",
   "delete_all": "Delete All",
   "cannot_load_archive": "Cannot load archive",

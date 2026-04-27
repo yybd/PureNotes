@@ -201,9 +201,6 @@ export const SettingsScreen = ({ navigation }: any) => {
             {/* Archive Settings */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('archive')}</Text>
-                <Text style={styles.description}>
-                    {t('manage_archive')}
-                </Text>
 
                 <TouchableOpacity
                     style={[styles.button, styles.buttonSecondary]}
