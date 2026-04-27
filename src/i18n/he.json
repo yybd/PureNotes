@@ -16,7 +16,7 @@
   "local_storage": "תיקייה פנימית",
   "local_storage_desc": "הפתקים נשמרים על המכשיר בלבד.",
   "cloud_storage_connection": "חיבור לענן / חיצוני",
-  "cloud_storage_desc": "ניתן לחבר תיקייה חיצונית (כמו iCloud Drive) כדי שהפתקים ישמרו ישירות שם ויסונכרנו עם המחשב.",
+  "cloud_storage_desc": "ניתן לחבר תיקייה חיצונית (כמו iCloud Drive או תיקיית Obsidian) כדי שהפתקים ישמרו ישירות שם ויסונכרנו עם המחשב.",
   "select_icloud_drive": "בחר תיקיית iCloud Drive",
   "select_external_folder": "בחר תיקייה חיצונית",
   "select_folder_web": "בחר תיקייה במחשב",

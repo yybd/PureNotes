@@ -16,7 +16,7 @@
   "local_storage": "Internal Folder",
   "local_storage_desc": "Notes are saved on the device only.",
   "cloud_storage_connection": "Cloud / External Connection",
-  "cloud_storage_desc": "You can connect an external folder (like iCloud Drive) to save notes directly there and sync with your computer.",
+  "cloud_storage_desc": "You can connect an external folder (like iCloud Drive or an Obsidian vault) to save notes directly there and sync with your computer.",
   "select_icloud_drive": "Select iCloud Drive Folder",
   "select_external_folder": "Select External Folder",
   "select_folder_web": "Select a folder on your computer",
