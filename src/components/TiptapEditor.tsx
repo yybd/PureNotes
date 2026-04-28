@@ -119,6 +119,17 @@ const buildCSS = (bg: string) => `
     .ProseMirror > *:first-child {
         margin-top: 0;
     }
+    /* Title-as-first-line: even when the user has not applied a heading
+       style, the first paragraph of the document is rendered with title
+       styling. Existing notes whose first line is a markdown heading
+       already render as h1, so this rule deliberately scopes to p only
+       to avoid double-styling real headings. */
+    .ProseMirror > p:first-child {
+        font-size: 1.5em;
+        font-weight: 600;
+        line-height: 1.3;
+        margin-bottom: 12px;
+    }
     .ProseMirror > *:last-child {
         margin-bottom: 0;
     }

@@ -121,7 +121,6 @@ export const NotesListScreen = ({ navigation }: any) => {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editModalNote, setEditModalNote] = useState<Note | null>(null);
     const [editModalBody, setEditModalBody] = useState('');
-    const [editModalTitle, setEditModalTitle] = useState('');
     const [editModalDomain, setEditModalDomain] = useState<DomainType | null>(null);
     const [editModalPinned, setEditModalPinned] = useState(false);
     const editModalOtherFm = useRef<Record<string, any>>({});
@@ -347,20 +346,16 @@ export const NotesListScreen = ({ navigation }: any) => {
     };
 
     // ── Open edit modal for an existing note ──────────────────────────────
+    // Title and body are now edited as a single continuous document in the
+    // editor — no separate title field. The first line acts as the title
+    // (kept as `# Heading` markdown so the convention with QuickAdd is
+    // preserved). On save we re-prepend `# ` if the user removed it.
     const openEditModal = useCallback((note: Note) => {
         const parsed = FrontmatterService.parseFrontmatter(note.content);
         const { domain: d, pinned: p, ...otherFm } = parsed.frontmatter;
 
-        // Extract title from first line if it starts with #
-        const lines = parsed.body.split('\n');
-        const firstLine = lines[0] || '';
-        const hasTitle = firstLine.startsWith('#');
-        const titleText = hasTitle ? firstLine.replace(/^#+\s*/, '').trim() : '';
-        const bodyWithoutTitle = hasTitle ? lines.slice(1).join('\n') : parsed.body;
-
         setEditModalNote(note);
-        setEditModalTitle(titleText);
-        setEditModalBody(bodyWithoutTitle);
+        setEditModalBody(parsed.body);
         setEditModalDomain((d as DomainType) || null);
         setEditModalPinned(p === true);
         editModalOtherFm.current = otherFm;
@@ -389,16 +384,20 @@ export const NotesListScreen = ({ navigation }: any) => {
 
         // Snapshot all values before clearing modal state
         const noteToSave = editModalNote;
-        const titleSnapshot = editModalTitle;
         const bodySnapshot = freshBody !== undefined ? freshBody : editModalBody;
         const domainSnapshot = editModalDomain;
         const pinnedSnapshot = editModalPinned;
         const otherFmSnapshot = editModalOtherFm.current;
 
-        // Reconstruct body with title as first line
+        // Title-as-first-line convention: if the user wiped the leading
+        // `# ` (now that title and body share one editor), re-add it so
+        // the saved markdown still has a heading on line 1. Mirrors the
+        // QuickAdd save path's behavior.
         let body = bodySnapshot;
-        if (titleSnapshot.trim()) {
-            body = '# ' + titleSnapshot.trim() + '\n' + body;
+        const lines = body.split('\n');
+        if (lines[0] && !lines[0].startsWith('#')) {
+            lines[0] = '# ' + lines[0];
+            body = lines.join('\n');
         }
 
         let fullContent = FrontmatterService.composeContent(
@@ -606,9 +605,6 @@ export const NotesListScreen = ({ navigation }: any) => {
                 onPinChange={setEditModalPinned}
                 onSave={handleEditModalSave}
                 onClose={handleEditModalClose}
-                title={editModalTitle}
-                onTitleChange={setEditModalTitle}
-                showTitle={true}
                 compactDomain
                 // Android: Tiptap WebView never finishes its JS init when
                 // mounted lazily on first modal-open (Android pauses freshly
