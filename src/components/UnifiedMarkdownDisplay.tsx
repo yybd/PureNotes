@@ -11,6 +11,21 @@ interface UnifiedMarkdownDisplayProps {
     numberOfLines?: number;
 }
 
+// Android: RN's `writingDirection` style is iOS-only, and `textAlign: 'right'`
+// alone does not change the paragraph-level BiDi direction — Android decides
+// paragraph direction from the device locale. Symptom: when the device is in
+// English, Hebrew lines in the notes list are laid out as LTR paragraphs
+// containing Hebrew runs, with punctuation/digits in visually wrong positions
+// (e.g. a final period jumps to the right edge). Prefixing the rendered text
+// with U+200F (RIGHT-TO-LEFT MARK) — a strong-RTL formatting character —
+// forces Android's BiDi algorithm (UAX#9 rule P2) to treat the line as an
+// RTL paragraph, mirroring the editor's CSS `unicode-bidi: plaintext`
+// behavior. U+200E (LRM) does the symmetric job for LTR lines on RTL
+// devices.
+const RLM = '‏';
+const LRM = '‎';
+const dirMark = (direction: 'rtl' | 'ltr') => (direction === 'rtl' ? RLM : LRM);
+
 // Recursively extract text from a node to determine direction
 const getNodeText = (node: any): string => {
     if (node.type === 'text' && node.content) {
@@ -69,12 +84,13 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
                         {
                             writingDirection: direction,
                             textAlign: direction === 'rtl' ? 'right' : 'left',
-                            alignSelf: 'stretch'
+                            alignSelf: 'stretch',
+                            width: '100%'
                         }
                     ]}
                     numberOfLines={numberOfLines}
                 >
-                    {children}
+                    {dirMark(direction)}{children}
                 </Text>
             );
         },
@@ -82,8 +98,8 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
             const textContent = getNodeText(node);
             const direction = getDirection(textContent);
             return (
-                <Text key={node.key} style={[ruleStyles.heading1, { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left' }]} numberOfLines={numberOfLines}>
-                    {children}
+                <Text key={node.key} style={[ruleStyles.heading1, { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left', alignSelf: 'stretch', width: '100%' }]} numberOfLines={numberOfLines}>
+                    {dirMark(direction)}{children}
                 </Text>
             );
         },
@@ -91,8 +107,8 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
             const textContent = getNodeText(node);
             const direction = getDirection(textContent);
             return (
-                <Text key={node.key} style={[ruleStyles.heading2, { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left' }]} numberOfLines={numberOfLines}>
-                    {children}
+                <Text key={node.key} style={[ruleStyles.heading2, { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left', alignSelf: 'stretch', width: '100%' }]} numberOfLines={numberOfLines}>
+                    {dirMark(direction)}{children}
                 </Text>
             );
         },
@@ -100,8 +116,8 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
             const textContent = getNodeText(node);
             const direction = getDirection(textContent);
             return (
-                <Text key={node.key} style={[ruleStyles.heading3, { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left' }]} numberOfLines={numberOfLines}>
-                    {children}
+                <Text key={node.key} style={[ruleStyles.heading3, { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left', alignSelf: 'stretch', width: '100%' }]} numberOfLines={numberOfLines}>
+                    {dirMark(direction)}{children}
                 </Text>
             );
         },
@@ -122,7 +138,7 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
                     flex: 1,
                     flexWrap: 'wrap',
                 }} numberOfLines={numberOfLines}>
-                    {children}
+                    {dirMark(direction)}{children}
                 </Text>
             );
 
@@ -195,7 +211,14 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
     }), [numberOfLines, onToggleCheckbox]);
 
     return (
-        <View style={style}>
+        // alignSelf:'stretch' + width:'100%' guarantees the markdown surface
+        // fills its container's full width. Without this, on Android with an
+        // English device locale the wrapper shrinks to content width, and
+        // textAlign:'right' inside paragraph rules has nothing to right-align
+        // against — Hebrew lines visibly anchor to the left edge of a
+        // narrower-than-card container. Forcing full width restores the
+        // expected per-paragraph right-alignment.
+        <View style={[{ alignSelf: 'stretch', width: '100%' }, style]}>
             <Markdown style={markdownStyles} rules={rules}>
                 {cleanContent}
             </Markdown>
@@ -213,6 +236,13 @@ const markdownStyles = StyleSheet.create({
         fontSize: 15,
         color: '#333333',
         lineHeight: 22,
+        // The library applies `body` to its top-level container View. Force
+        // it to stretch so per-paragraph textAlign:'right' has the full card
+        // width to align against — without this, on Android-EN the container
+        // shrinks to its content and right-aligned Hebrew text visibly
+        // anchors to the left edge.
+        alignSelf: 'stretch',
+        width: '100%',
         // textAlign and writingDirection removed, handled by rules
     },
     heading1: {

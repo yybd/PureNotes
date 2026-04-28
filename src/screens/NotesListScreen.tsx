@@ -592,6 +592,14 @@ export const NotesListScreen = ({ navigation }: any) => {
                 onTitleChange={setEditModalTitle}
                 showTitle={true}
                 compactDomain
+                // Android: Tiptap WebView never finishes its JS init when
+                // mounted lazily on first modal-open (Android pauses freshly
+                // mounted WebView execution until user interaction). Eager-
+                // mounting at app launch — like QuickAdd already does — gives
+                // the WebView time to warm up while the user is still
+                // browsing the notes list, so the first Edit-modal open is
+                // instant and content appears without needing a tap.
+                eagerMount={Platform.OS === 'android'}
             />
 
             {/* Error Message */}

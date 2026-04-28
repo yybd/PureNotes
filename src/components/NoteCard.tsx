@@ -603,7 +603,14 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
                             `*italic*`, etc.) as styled spans instead of
                             leaking the raw markers into the card. */}
                         {hasTitle && title && (
-                            <Text style={[styles.title, { textAlign: getDirection(title) === 'rtl' ? 'right' : 'left' }]} numberOfLines={isExpanded ? undefined : 2}>
+                            <Text style={[styles.title, { textAlign: getDirection(title) === 'rtl' ? 'right' : 'left', writingDirection: getDirection(title), alignSelf: 'stretch', width: '100%' }]} numberOfLines={isExpanded ? undefined : 2}>
+                                {/* Force paragraph BiDi direction via a leading
+                                    U+200F (RLM) / U+200E (LRM) marker. Without
+                                    this, Android with an English device
+                                    locale lays out Hebrew titles as LTR
+                                    paragraphs containing Hebrew runs, which
+                                    misplaces trailing punctuation/digits. */}
+                                {getDirection(title) === 'rtl' ? '‏' : '‎'}
                                 {renderInlineMarkdown(title)}
                             </Text>
                         )}

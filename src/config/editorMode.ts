@@ -8,10 +8,18 @@
 //
 // PLATFORM SCOPE:
 //
-//   - iOS / Android: react-native-enriched (native UITextView / EditText).
-//     ZERO cold start, no WKWebView WebContent process to wait for. This
-//     is the whole point of the migration — solves the iPad 4-6 s
-//     first-tap freeze caused by iOS WebKit cold start.
+//   - iOS: react-native-enriched (native UITextView). ZERO cold start, no
+//     WKWebView WebContent process to wait for. This is the whole point
+//     of the migration — solves the iPad 4-6 s first-tap freeze caused
+//     by iOS WebKit cold start. RTL + per-paragraph BiDi are wired up
+//     via patches/react-native-enriched+0.6.1.patch.
+//
+//   - Android: legacy @10play/tentap-editor (WebView). RNE's Android
+//     EditText path renders RTL/lists/checkboxes inconsistently in our
+//     content compared to Tiptap, and Android WebView doesn't have the
+//     iOS WKWebView cold-start tax — there's no perf benefit to swap.
+//     Keeping the WebView editor here trades a non-issue (cold start)
+//     for visual fidelity.
 //
 //   - Web: legacy @10play/tentap-editor (WebView, which on Web is just
 //     a normal browser DOM, no cold-start problem). RNE *ships* a web
@@ -23,4 +31,4 @@
 //     is the cleanest workaround. The Tiptap path on Web has always
 //     worked well, so we lose nothing.
 import { Platform } from 'react-native';
-export const USE_NATIVE_EDITOR = Platform.OS !== 'web';
+export const USE_NATIVE_EDITOR = Platform.OS === 'ios';

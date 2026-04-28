@@ -320,6 +320,27 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     // Updated on every render so the listener always invokes the latest version.
     handleCloseRef.current = handleClose;
 
+    // Android: closing the keyboard dismisses the modal (same effect as
+    // tapping the toolbar's "down" arrow). Avoids the residual gap below
+    // the toolbar when the keyboard goes down — the bottom system insets
+    // (gesture bar) can be ~56 dp on some devices, capping doesn't fully
+    // eliminate the visual lift, so the cleanest UX is just to close.
+    // Only fires on a true→false transition while the modal is visible,
+    // and only on Android.
+    const prevKeyboardVisibleRef = useRef(isKeyboardVisible);
+    useEffect(() => {
+        const wasKeyboardVisible = prevKeyboardVisibleRef.current;
+        prevKeyboardVisibleRef.current = isKeyboardVisible;
+        if (
+            Platform.OS === 'android' &&
+            visible &&
+            wasKeyboardVisible &&
+            !isKeyboardVisible
+        ) {
+            handleCloseRef.current?.();
+        }
+    }, [isKeyboardVisible, visible]);
+
     // Web only: Cmd/Ctrl+S triggers the same flow as the send button. Held
     // in a ref so the listener always calls the latest handleSave (which
     // closes over current `text`/`domain`) without needing to re-attach
@@ -461,7 +482,7 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                         propagation mechanism). Same visual layout. */}
                     {USE_NATIVE_EDITOR ? (
                         enrichedBridge && (
-                            <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
+                            <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : (Platform.OS === 'android' ? Math.min(insets.bottom, 16) : Math.max(insets.bottom, 16)) }]}>
                                 <EnrichedToolbar
                                     editor={enrichedBridge}
                                     state={enrichedState}
@@ -473,7 +494,7 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                         )
                     ) : (
                         editorBridge && (
-                            <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
+                            <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : (Platform.OS === 'android' ? Math.min(insets.bottom, 16) : Math.max(insets.bottom, 16)) }]}>
                                 <TiptapToolbar
                                     editor={editorBridge}
                                     onPinPress={() => onPinChange(!isPinned)}

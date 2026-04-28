@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm b/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm
-index 66c2251..6e6aa2e 100644
+index 66c2251..86e118a 100644
 --- a/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm
 +++ b/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm
 @@ -33,6 +33,16 @@ @interface EnrichedTextInputView () <
@@ -52,7 +52,7 @@ index 66c2251..6e6aa2e 100644
    // update height on each character change
    [self tryUpdatingHeight];
    // update active styles as well
-@@ -2330,4 +2352,127 @@ - (CGRect)frameForAttachment:(ImageAttachment *)attachment
+@@ -2330,4 +2352,134 @@ - (CGRect)frameForAttachment:(ImageAttachment *)attachment
  
    return CGRectIntegral(rect);
  }
@@ -129,8 +129,14 @@ index 66c2251..6e6aa2e 100644
 +
 +    NSWritingDirection writingDir = isRTL ? NSWritingDirectionRightToLeft
 +                                          : NSWritingDirectionLeftToRight;
-+    NSTextAlignment alignment = isRTL ? NSTextAlignmentRight
-+                                       : NSTextAlignmentLeft;
++    // Use NSTextAlignmentNatural so iOS resolves the alignment from the
++    // paragraph's `baseWritingDirection` AND — critically — applies
++    // `headIndent` as "from the leading edge" (which becomes the RIGHT
++    // edge for RTL paragraphs). With explicit NSTextAlignmentRight, iOS
++    // ignored `tailIndent` for RTL paragraphs that have textLists set,
++    // letting Hebrew text fill all the way to the right edge and cover
++    // the bullet drawn there.
++    NSTextAlignment alignment = NSTextAlignmentNatural;
 +
 +    // Mutate the existing paragraph style so we preserve headIndent,
 +    // line height, textLists (list/checkbox metadata), etc.
@@ -141,50 +147,51 @@ index 66c2251..6e6aa2e 100644
 +    NSMutableParagraphStyle *pStyle = existingStyle
 +        ? [existingStyle mutableCopy]
 +        : [[NSMutableParagraphStyle alloc] init];
-+    if (pStyle.alignment == alignment &&
-+        pStyle.baseWritingDirection == writingDir) {
-+      // Already correct — skip the addAttribute to avoid triggering
-+      // textStorage delegate callbacks unnecessarily.
-+      location = NSMaxRange(paragraphRange);
-+      continue;
-+    }
++
++    // The list/checkbox style classes set `headIndent` to leave room for
++    // the marker on the leading edge. With NSTextAlignmentNatural +
++    // baseWritingDirection=RTL, iOS treats the leading edge as the RIGHT
++    // for Hebrew paragraphs, so the same `headIndent` value automatically
++    // produces a right-side indent. We don't need to swap to `tailIndent`
++    // — keep the existing headIndent untouched and just zero out tailIndent
++    // (which we may have set on a previous refresh pass back when we tried
++    // the swap approach).
++    CGFloat listIndent = MAX(pStyle.headIndent, -pStyle.tailIndent);
++    CGFloat firstLineIndent = MAX(pStyle.firstLineHeadIndent,
++                                   -pStyle.tailIndent);
++    CGFloat newHeadIndent = listIndent;
++    CGFloat newFirstLineHeadIndent = firstLineIndent;
++    CGFloat newTailIndent = 0;
++
++    // PureNotes patch: NO early-out. We always re-apply our settings, even
++    // if they match the current pStyle — RNE's handleDirtyRangesStyling can
++    // re-set attributes after our refresh in some flows, and an early-out
++    // would let those overwrites stick. Cost of always writing is minimal.
 +    pStyle.alignment = alignment;
 +    pStyle.baseWritingDirection = writingDir;
++    pStyle.headIndent = newHeadIndent;
++    pStyle.firstLineHeadIndent = newFirstLineHeadIndent;
++    pStyle.tailIndent = newTailIndent;
 +    [storage addAttribute:NSParagraphStyleAttributeName
 +                    value:pStyle
 +                    range:paragraphRange];
 +
 +    location = NSMaxRange(paragraphRange);
 +  }
-+
-+  // Also update typingAttributes for the current selection so that
-+  // a freshly-created empty paragraph (e.g. after Enter at the end of
-+  // a Hebrew paragraph) keeps the same direction until proven otherwise.
-+  if (textView.selectedRange.location <= length) {
-+    NSUInteger probeLoc = textView.selectedRange.location > 0
-+        ? textView.selectedRange.location - 1
-+        : 0;
-+    if (probeLoc < length) {
-+      NSParagraphStyle *currentStyle =
-+          [storage attribute:NSParagraphStyleAttributeName
-+                     atIndex:probeLoc
-+              effectiveRange:NULL];
-+      if (currentStyle != nil) {
-+        NSMutableDictionary *typing =
-+            [textView.typingAttributes mutableCopy];
-+        typing[NSParagraphStyleAttributeName] = [currentStyle copy];
-+        textView.typingAttributes = typing;
-+      }
-+    }
-+  }
++  // PureNotes patch: intentionally NOT touching typingAttributes here.
++  // An earlier version copied the previous-character's pStyle into
++  // typingAttributes, but when the cursor sat at a paragraph boundary the
++  // probed pStyle could be from a non-list paragraph — wiping textLists out
++  // of typingAttributes and breaking checkbox/bullet rendering on the next
++  // typed char. RNE's own typingAttributes management is sufficient.
 +}
 +
  @end
 diff --git a/node_modules/react-native-enriched/ios/extensions/LayoutManagerExtension.mm b/node_modules/react-native-enriched/ios/extensions/LayoutManagerExtension.mm
-index 58f4620..0462232 100644
+index 58f4620..3c697e3 100644
 --- a/node_modules/react-native-enriched/ios/extensions/LayoutManagerExtension.mm
 +++ b/node_modules/react-native-enriched/ios/extensions/LayoutManagerExtension.mm
-@@ -299,6 +299,23 @@ - (void)drawLists:(EnrichedTextInputView *)typedInput
+@@ -299,6 +299,66 @@ - (void)drawLists:(EnrichedTextInputView *)typedInput
                                           [self getTextAlignedUsedRect:usedRect
                                                                   font:font];
  
@@ -205,15 +212,58 @@ index 58f4620..0462232 100644
 +                                         livePStyle.baseWritingDirection ==
 +                                         NSWritingDirectionRightToLeft;
 +
++                                     // For RTL paragraphs, iOS does not
++                                     // reliably anchor `usedRect` at the
++                                     // trailing edge of the text region —
++                                     // empty/short paragraphs may report
++                                     // origin.x = 0. Compute the trailing
++                                     // edge ourselves from the text container
++                                     // width minus the tail-indent magnitude
++                                     // we set in refreshParagraphDirections,
++                                     // minus the line fragment padding. Then
++                                     // synthesize a usedRect whose right edge
++                                     // sits exactly there, so `CGRectGetMaxX`
++                                     // in the draw functions yields the
++                                     // correct anchor regardless of glyph
++                                     // count on the line.
++                                     // With NSTextAlignmentNatural +
++                                     // baseWritingDirection=RTL, iOS treats
++                                     // the leading edge as the RIGHT of the
++                                     // container and applies `headIndent`
++                                     // there. For an empty paragraph, the
++                                     // empty usedRect should already be
++                                     // anchored at (container.w - headIndent
++                                     // - lfPad). Synthesize an anchored rect
++                                     // as a defensive fallback in case iOS
++                                     // disagrees for a particular line.
++                                     CGRect rtlAnchoredRect = textUsedRect;
++                                     CGRect rtlAnchoredRectFull = usedRect;
++                                     if (isRTL) {
++                                       CGFloat headMag =
++                                           MAX((CGFloat)0,
++                                               livePStyle.headIndent);
++                                       CGFloat lfPadding =
++                                           container.lineFragmentPadding;
++                                       CGFloat textRightEdge =
++                                           container.size.width - headMag -
++                                           lfPadding;
++                                       rtlAnchoredRect.origin.x =
++                                           textRightEdge -
++                                           rtlAnchoredRect.size.width;
++                                       rtlAnchoredRectFull.origin.x =
++                                           textRightEdge -
++                                           rtlAnchoredRectFull.size.width;
++                                     }
++
                                       NSString *markerFormat =
                                           pStyle.textLists.firstObject
                                               .markerFormat;
-@@ -313,21 +330,24 @@ - (void)drawLists:(EnrichedTextInputView *)typedInput
+@@ -313,21 +373,24 @@ - (void)drawLists:(EnrichedTextInputView *)typedInput
                                                       marker:marker
                                             markerAttributes:markerAttributes
                                                       origin:origin
 -                                                   usedRect:usedRect];
-+                                                   usedRect:usedRect
++                                                   usedRect:rtlAnchoredRectFull
 +                                                      isRTL:isRTL];
                                       } else if ([markerFormat
                                                      isEqualToString:
@@ -222,7 +272,7 @@ index 58f4620..0462232 100644
                                         [self drawBullet:typedInput
                                                   origin:origin
 -                                               usedRect:textUsedRect];
-+                                               usedRect:textUsedRect
++                                               usedRect:rtlAnchoredRect
 +                                                  isRTL:isRTL];
                                       } else if ([markerFormat
                                                      hasPrefix:
@@ -231,12 +281,12 @@ index 58f4620..0462232 100644
                                               markerFormat:markerFormat
                                                     origin:origin
 -                                                 usedRect:textUsedRect];
-+                                                 usedRect:textUsedRect
++                                                 usedRect:rtlAnchoredRect
 +                                                    isRTL:isRTL];
                                       }
                                       // only first line of a list gets its
                                       // marker drawn
-@@ -395,7 +415,8 @@ - (CGRect)getTextAlignedUsedRect:(CGRect)usedRect font:(UIFont *)font {
+@@ -395,7 +458,8 @@ - (CGRect)getTextAlignedUsedRect:(CGRect)usedRect font:(UIFont *)font {
  - (void)drawCheckbox:(EnrichedTextInputView *)typedInput
          markerFormat:(NSString *)markerFormat
                origin:(CGPoint)origin
@@ -246,7 +296,7 @@ index 58f4620..0462232 100644
    BOOL isChecked = [markerFormat isEqualToString:@"EnrichedCheckbox1"];
  
    UIImage *image = isChecked ? typedInput->config.checkboxCheckedImage
-@@ -404,7 +425,12 @@ - (void)drawCheckbox:(EnrichedTextInputView *)typedInput
+@@ -404,7 +468,12 @@ - (void)drawCheckbox:(EnrichedTextInputView *)typedInput
    CGFloat boxSize = [typedInput->config checkboxListBoxSize];
  
    CGFloat centerY = CGRectGetMidY(usedRect) + origin.y;
@@ -260,7 +310,7 @@ index 58f4620..0462232 100644
    CGFloat boxY = centerY - boxSize / 2.0;
  
    [image drawAtPoint:CGPointMake(boxX, boxY)];
-@@ -412,10 +438,16 @@ - (void)drawCheckbox:(EnrichedTextInputView *)typedInput
+@@ -412,10 +481,16 @@ - (void)drawCheckbox:(EnrichedTextInputView *)typedInput
  
  - (void)drawBullet:(EnrichedTextInputView *)typedInput
              origin:(CGPoint)origin
@@ -279,7 +329,7 @@ index 58f4620..0462232 100644
    CGFloat centerY = CGRectGetMidY(usedRect) + origin.y;
  
    CGContextRef context = UIGraphicsGetCurrentContext();
-@@ -433,10 +465,16 @@ - (void)drawDecimal:(EnrichedTextInputView *)typedInput
+@@ -433,10 +508,16 @@ - (void)drawDecimal:(EnrichedTextInputView *)typedInput
                marker:(NSString *)marker
      markerAttributes:(NSDictionary *)markerAttributes
                origin:(CGPoint)origin
