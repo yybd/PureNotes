@@ -18,7 +18,12 @@ import { useNotesStore } from '../stores/notesStore';
 import PureNotesService from '../services/PureNotesService';
 import StorageService from '../services/StorageService';
 import { ArchiveModal } from '../components/ArchiveModal';
+import { Slider } from '../components/Slider';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
+
+const TEXT_SCALE_MIN = 0.85;
+const TEXT_SCALE_MAX = 1.4;
+const TEXT_SCALE_STEP = 0.05;
 
 export const SettingsScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -218,6 +223,27 @@ export const SettingsScreen = ({ navigation }: any) => {
             </View>
             */}
 
+            {/* Text size — drives the textScale multiplier applied to
+                note title and body in the list. Small Aa / large Aa
+                bookend the slider so the direction is obvious. */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('text_size')}</Text>
+                <View style={styles.textSizeRow}>
+                    <Text style={[styles.textSizeSampleSmall, { fontSize: 13 * TEXT_SCALE_MIN }]}>Aa</Text>
+                    <View style={styles.textSizeSliderWrap}>
+                        <Slider
+                            value={settings.textScale}
+                            onValueChange={(v) => updateSettings({ textScale: v })}
+                            min={TEXT_SCALE_MIN}
+                            max={TEXT_SCALE_MAX}
+                            step={TEXT_SCALE_STEP}
+                        />
+                    </View>
+                    <Text style={[styles.textSizeSampleLarge, { fontSize: 13 * TEXT_SCALE_MAX }]}>Aa</Text>
+                </View>
+                <Text style={styles.hint}>{t('text_size_hint')}</Text>
+            </View>
+
             {/* Archive Settings */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('archive')}</Text>
@@ -388,6 +414,22 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         textAlign: 'center',
         marginTop: 8,
+    },
+    textSizeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    textSizeSliderWrap: {
+        flex: 1,
+    },
+    textSizeSampleSmall: {
+        color: '#1A1A1A',
+        fontWeight: '600',
+    },
+    textSizeSampleLarge: {
+        color: '#1A1A1A',
+        fontWeight: '600',
     },
     storageCard: {
         flexDirection: 'row',

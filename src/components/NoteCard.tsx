@@ -144,6 +144,9 @@ const renderInlineMarkdown = (text: string): React.ReactNode => {
 
 const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDismissKeyboard, onSync, onArchive, onEditStart, onEditEnd, onEditContentChange, onEditSelectionChange, onStatusChange, externalEditContent, externalIsPinned, maxEditHeight, editorHorizontalInset = 64, autoEdit, forceExitEdit, onEditRequest, onQuickAddRequest, onEditorReady, style }) => {
     const { t, i18n } = useTranslation();
+    // Subscribe to the textScale setting so the card re-renders when the
+    // user drags the slider on the Settings screen.
+    const textScale = useNotesStore((s) => s.settings.textScale);
     // Parse content upfront for autoEdit mode
     const initialParsed = autoEdit ? FrontmatterService.parseFrontmatter(note.content) : null;
 
@@ -611,7 +614,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
                             `*italic*`, etc.) as styled spans instead of
                             leaking the raw markers into the card. */}
                         {hasTitle && title && (
-                            <Text style={[styles.title, { textAlign: getDirection(title) === 'rtl' ? 'right' : 'left', writingDirection: getDirection(title), alignSelf: 'stretch', width: '100%' }]} numberOfLines={isExpanded ? undefined : 2}>
+                            <Text style={[styles.title, { fontSize: 18 * textScale, textAlign: getDirection(title) === 'rtl' ? 'right' : 'left', writingDirection: getDirection(title), alignSelf: 'stretch', width: '100%' }]} numberOfLines={isExpanded ? undefined : 2}>
                                 {/* Force paragraph BiDi direction via a leading
                                     U+200F (RLM) / U+200E (LRM) marker. Without
                                     this, Android with an English device
@@ -626,6 +629,7 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
                         <View style={!isExpanded ? { maxHeight: 120, overflow: 'hidden' } : undefined}>
                             <UnifiedMarkdownDisplay
                                 content={bodyContent}
+                                scale={textScale}
                                 onToggleCheckbox={isExpanded && !isEditing ? (index) => {
                                     const newContent = toggleCheckboxByIndex(note.content, index);
                                     if (newContent !== note.content) {

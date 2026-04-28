@@ -36,6 +36,9 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'auto';
   defaultView: 'grid' | 'list';
   editorMode: 'markdown' | 'richtext';
+  // Multiplier applied to note text size in the list (title + body).
+  // 1.0 = default. Range enforced by the Settings slider (0.85–1.4).
+  textScale: number;
 }
 
 export interface SearchResult {

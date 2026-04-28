@@ -68,5 +68,7 @@
   "domain_knowledge": "לדעת",
   "domain_library": "לספרייה",
   "select_domain": "בחר תחום",
-  "clear": "ניקוי"
+  "clear": "ניקוי",
+  "text_size": "גודל טקסט",
+  "text_size_hint": "משפיע על הטקסט בפתקים ברשימה."
 }

@@ -18,6 +18,7 @@ const defaultSettings: AppSettings = {
     theme: 'auto',
     defaultView: 'grid',
     editorMode: 'richtext',
+    textScale: 1,
 };
 
 export const createSettingsSlice: StateCreator<

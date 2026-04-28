@@ -9,6 +9,8 @@ interface UnifiedMarkdownDisplayProps {
     onToggleCheckbox?: (checklistIndexTarget: number) => void;
     style?: StyleProp<ViewStyle>;
     numberOfLines?: number;
+    /** Multiplier applied to body and heading font sizes. 1 = default. */
+    scale?: number;
 }
 
 // Android: RN's `writingDirection` style is iOS-only, and `textAlign: 'right'`
@@ -41,7 +43,7 @@ const getNodeText = (node: any): string => {
     return text;
 };
 
-const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ content, onToggleCheckbox, style, numberOfLines }) => {
+const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ content, onToggleCheckbox, style, numberOfLines, scale = 1 }) => {
 
     // Checkbox Render Index reference to preserve unique indexes across render
     const checklistRenderIndex = useRef(0);
@@ -219,12 +221,25 @@ const UnifiedMarkdownDisplayImpl: React.FC<UnifiedMarkdownDisplayProps> = ({ con
         // narrower-than-card container. Forcing full width restores the
         // expected per-paragraph right-alignment.
         <View style={[{ alignSelf: 'stretch', width: '100%' }, style]}>
-            <Markdown style={markdownStyles} rules={rules}>
+            <Markdown style={scale === 1 ? markdownStyles : scaledMarkdownStyles(scale)} rules={rules}>
                 {cleanContent}
             </Markdown>
         </View>
     );
 };
+
+// Build a per-instance copy of markdownStyles with body / heading font
+// sizes (and line heights) multiplied by `scale`. Recomputed only when
+// scale actually differs from 1, so the default-scale path keeps the
+// shared StyleSheet.create object.
+const scaledMarkdownStyles = (scale: number) => ({
+    ...markdownStyles,
+    body: { ...markdownStyles.body, fontSize: 15 * scale, lineHeight: 22 * scale },
+    heading1: { ...markdownStyles.heading1, fontSize: 24 * scale },
+    heading2: { ...markdownStyles.heading2, fontSize: 20 * scale },
+    heading3: { ...markdownStyles.heading3, fontSize: 18 * scale },
+    list_item_bullet: { ...markdownStyles.list_item_bullet, fontSize: 15 * scale, lineHeight: 22 * scale },
+});
 
 // Memo: skip re-render when content/props haven't changed (default shallow
 // compare). Avoids re-parsing markdown when an unrelated NoteCard prop nudges

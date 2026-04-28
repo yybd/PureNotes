@@ -68,5 +68,7 @@
   "domain_knowledge": "Knowledge",
   "domain_library": "Library",
   "select_domain": "Select Domain",
-  "clear": "Clear"
+  "clear": "Clear",
+  "text_size": "Text size",
+  "text_size_hint": "Affects note text in the list."
 }
