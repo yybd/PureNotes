@@ -656,16 +656,16 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        height: 32,
+        height: 12,
     },
     bottomBlur: {
         // Anchored to the top of bottomSection and extends upward, so it
         // overlays the FlatList area just above the QuickAdd bar.
         position: 'absolute',
-        top: -32,
+        top: -12,
         left: 0,
         right: 0,
-        height: 32,
+        height: 12,
     },
     listContent: {
         padding: 20,
