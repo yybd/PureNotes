@@ -1,16 +1,26 @@
 // SmartEditor.tsx
 // Unified editor facade.
-// Delegates to TiptapEditor (richtext mode) or NativeLiveEditor (markdown mode).
-// Parents always receive / provide raw Markdown strings — the conversion to/from
-// HTML is handled internally here.
+// Delegates to:
+//   - TiptapEditor (richtext mode, USE_NATIVE_EDITOR=false): WebView-based.
+//   - EnrichedEditor (richtext mode, USE_NATIVE_EDITOR=true): native UITextView /
+//     EditText via react-native-enriched. NO WebView, no cold start.
+//   - NativeLiveEditor (markdown mode): currently disabled.
+//
+// Parents always receive / provide raw Markdown strings — the conversion
+// to/from HTML is handled internally here. The path branches on the
+// USE_NATIVE_EDITOR feature flag (src/config/editorMode.ts) so flipping the
+// flag back to false is the rollback path with no other code changes needed.
 
 import React, { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
 import { StyleProp, TextStyle } from 'react-native';
 import type { EditorBridge } from '@10play/tentap-editor';
+import type { OnChangeStateEvent } from 'react-native-enriched';
 import { NativeLiveEditor, NativeLiveEditorRef } from './NativeLiveEditor';
 import { TiptapEditor, TiptapEditorRef } from './TiptapEditor';
+import { EnrichedEditor, EnrichedEditorRef, EnrichedEditorBridge } from './EnrichedEditor';
 import { useNotesStore } from '../stores/notesStore';
 import MarkdownConverterService from '../services/MarkdownConverterService';
+import { USE_NATIVE_EDITOR } from '../config/editorMode';
 
 // Debounce window for HTML→Markdown conversion while the user is actively
 // typing. The conversion is expensive (regex + node-html-markdown) and
@@ -32,11 +42,17 @@ export interface SmartEditorRef {
     /** Move cursor (markdown mode only). */
     setSelection: (sel: { start: number; end: number }) => void;
     /**
-     * Returns the EditorBridge for richtext mode so the toolbar can read
-     * live state and call formatting commands directly.
-     * Returns null in markdown mode.
+     * Returns the Tiptap EditorBridge for richtext mode (Tiptap path only).
+     * Returns null in markdown mode OR when running on the RNE path.
+     * Use `getEnrichedBridge()` for the RNE path's command surface.
      */
     getEditorBridge: () => EditorBridge | null;
+    /**
+     * Returns the RNE-flavored bridge for the EnrichedEditor path.
+     * Returns null in markdown mode OR on the Tiptap path. The shape mirrors
+     * `EditorBridge` but proxies to react-native-enriched native commands.
+     */
+    getEnrichedBridge: () => EnrichedEditorBridge | null;
     /**
      * Appends a new task-list item after the last existing one.
      * In markdown mode this is handled externally via appendChecklistItem.
@@ -53,6 +69,12 @@ export interface SmartEditorProps {
     onBlur?: () => void;
     /** Fired when the WebView editor is fully initialised (richtext mode only). */
     onEditorReady?: () => void;
+    /**
+     * RNE-only: forwards EnrichedEditor's onStateChange events so a parent
+     * (e.g. EditorModal) can pass formatting state to the EnrichedToolbar.
+     * Tiptap path uses useBridgeState internally and ignores this.
+     */
+    onEnrichedStateChange?: (state: OnChangeStateEvent) => void;
     placeholder?: string;
     style?: StyleProp<TextStyle>;
     scrollEnabled?: boolean;
@@ -90,6 +112,7 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
             onStatusChange,
             contentInset,
             scrollIndicatorInsets,
+            onEnrichedStateChange,
             ...rest
         },
         ref,
@@ -100,6 +123,7 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
 
         const nativeEditorRef = useRef<NativeLiveEditorRef>(null);
         const tiptapEditorRef = useRef<TiptapEditorRef>(null);
+        const enrichedEditorRef = useRef<EnrichedEditorRef>(null);
 
         // Pending HTML payload from Tiptap waiting to be converted to markdown.
         // Held in a ref so a fast typist doesn't trigger a conversion per keystroke.
@@ -118,7 +142,13 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         const convertAndCache = (html: string): string => {
             const cached = conversionCacheRef.current;
             if (cached && cached.html === html) return cached.markdown;
-            const markdown = MarkdownConverterService.htmlToMarkdown(html);
+            // Different paths emit different HTML shapes:
+            //   - Tiptap: <ul data-type="taskList"><li data-type="taskItem" data-checked="...">
+            //   - RNE:    <ul data-type="checkbox"><li [checked]>... and <codeblock>
+            // Each has its own htmlToMarkdown path tuned to its tag set.
+            const markdown = USE_NATIVE_EDITOR
+                ? MarkdownConverterService.htmlToMarkdownFromRne(html)
+                : MarkdownConverterService.htmlToMarkdown(html);
             conversionCacheRef.current = { html, markdown };
             return markdown;
         };
@@ -169,32 +199,49 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                         debounceTimerRef.current = null;
                     }
                     pendingHtmlRef.current = null;
-                    // Read from the locally-mirrored HTML so we skip the WebView
-                    // round-trip. The conversion itself is memoized.
+                    // Read from the locally-mirrored HTML so we skip the
+                    // editor round-trip. The conversion itself is memoized.
                     return convertAndCache(latestHtmlRef.current);
                 },
 
                 focus: () => {
-                    editorMode === 'markdown'
-                        ? nativeEditorRef.current?.focus()
-                        : tiptapEditorRef.current?.focus();
+                    if (editorMode === 'markdown') {
+                        nativeEditorRef.current?.focus();
+                    } else if (USE_NATIVE_EDITOR) {
+                        enrichedEditorRef.current?.focus();
+                    } else {
+                        tiptapEditorRef.current?.focus();
+                    }
                 },
 
                 blur: () => {
-                    editorMode === 'markdown'
-                        ? nativeEditorRef.current?.blur()
-                        : tiptapEditorRef.current?.blur();
+                    if (editorMode === 'markdown') {
+                        nativeEditorRef.current?.blur();
+                    } else if (USE_NATIVE_EDITOR) {
+                        enrichedEditorRef.current?.blur();
+                    } else {
+                        tiptapEditorRef.current?.blur();
+                    }
                 },
 
                 setText: (text: string) => {
                     if (editorMode === 'markdown') {
                         nativeEditorRef.current?.setText?.(text);
+                        return;
+                    }
+                    // Convert markdown to HTML using the path-appropriate
+                    // converter. The Tiptap and RNE flavors emit different
+                    // tag shapes (taskList vs checkbox, codeblock, etc.).
+                    const html = USE_NATIVE_EDITOR
+                        ? MarkdownConverterService.markdownToHtmlForRne(text)
+                        : MarkdownConverterService.markdownToHtml(text);
+                    // Keep mirrors in sync so a subsequent getMarkdown
+                    // returns the just-set content faithfully.
+                    latestHtmlRef.current = html;
+                    conversionCacheRef.current = { html, markdown: text };
+                    if (USE_NATIVE_EDITOR) {
+                        enrichedEditorRef.current?.setHtml(html);
                     } else {
-                        const html = MarkdownConverterService.markdownToHtml(text);
-                        // Keep mirrors in sync so a subsequent getMarkdown
-                        // returns the just-set content faithfully.
-                        latestHtmlRef.current = html;
-                        conversionCacheRef.current = { html, markdown: text };
                         tiptapEditorRef.current?.setHtml(html);
                     }
                 },
@@ -202,10 +249,16 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                 setTextAndSelection: (text: string, sel: { start: number; end: number }) => {
                     if (editorMode === 'markdown') {
                         nativeEditorRef.current?.setTextAndSelection?.(text, sel);
+                        return;
+                    }
+                    const html = USE_NATIVE_EDITOR
+                        ? MarkdownConverterService.markdownToHtmlForRne(text)
+                        : MarkdownConverterService.markdownToHtml(text);
+                    latestHtmlRef.current = html;
+                    conversionCacheRef.current = { html, markdown: text };
+                    if (USE_NATIVE_EDITOR) {
+                        enrichedEditorRef.current?.setHtml(html);
                     } else {
-                        const html = MarkdownConverterService.markdownToHtml(text);
-                        latestHtmlRef.current = html;
-                        conversionCacheRef.current = { html, markdown: text };
                         tiptapEditorRef.current?.setHtml(html);
                     }
                 },
@@ -217,18 +270,32 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
                 },
 
                 getEditorBridge: () => {
-                    if (editorMode !== 'richtext') return null;
+                    if (editorMode !== 'richtext' || USE_NATIVE_EDITOR) return null;
                     return tiptapEditorRef.current?.editorBridge ?? null;
+                },
+
+                getEnrichedBridge: () => {
+                    if (editorMode !== 'richtext' || !USE_NATIVE_EDITOR) return null;
+                    return enrichedEditorRef.current?.editorBridge ?? null;
                 },
 
                 insertCheckboxItem: () => {
                     if (editorMode !== 'richtext') return;
-                    // toggleTaskList at the end of the document appends a new task item
-                    // using Tiptap's built-in ProseMirror command — no custom JS needed.
-                    const bridge = tiptapEditorRef.current?.editorBridge;
-                    if (!bridge) return;
-                    bridge.focus('end');
-                    bridge.toggleTaskList();
+                    if (USE_NATIVE_EDITOR) {
+                        // RNE: toggleCheckboxList(false) starts a new
+                        // unchecked checkbox at the current selection.
+                        const bridge = enrichedEditorRef.current?.editorBridge;
+                        if (!bridge) return;
+                        bridge.focus();
+                        bridge.toggleCheckboxList(false);
+                    } else {
+                        // Tiptap: toggleTaskList at the end of the document
+                        // appends a new task item via Tiptap's command.
+                        const bridge = tiptapEditorRef.current?.editorBridge;
+                        if (!bridge) return;
+                        bridge.focus('end');
+                        bridge.toggleTaskList();
+                    }
                 },
             }),
             [editorMode],
@@ -261,7 +328,9 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
         // previously re-ran markdownToHtml unnecessarily.
         const initialHtmlRef = useRef<string | null>(null);
         if (initialHtmlRef.current === null) {
-            const html = MarkdownConverterService.markdownToHtml(initialContent);
+            const html = USE_NATIVE_EDITOR
+                ? MarkdownConverterService.markdownToHtmlForRne(initialContent)
+                : MarkdownConverterService.markdownToHtml(initialContent);
             initialHtmlRef.current = html;
             // Seed mirrors so getMarkdown can return faithful content even if
             // the user opens the editor and immediately saves without typing.
@@ -279,6 +348,26 @@ export const SmartEditor = forwardRef<SmartEditorRef, SmartEditorProps>(
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = setTimeout(flushHtmlConversion, RICHTEXT_CHANGE_DEBOUNCE_MS);
         };
+
+        // Branch on USE_NATIVE_EDITOR. Both editors expose a similar surface
+        // (initialHtml in, HTML out via onChange, focus/blur/ready hooks).
+        if (USE_NATIVE_EDITOR) {
+            return (
+                <EnrichedEditor
+                    ref={enrichedEditorRef}
+                    initialHtml={initialHtml}
+                    onChange={handleRichTextChange}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                    onReady={onEditorReady}
+                    onStateChange={onEnrichedStateChange}
+                    placeholder={placeholder}
+                    style={style as any}
+                    backgroundColor={backgroundColor}
+                    autoFocus={autoFocus}
+                />
+            );
+        }
 
         return (
             <TiptapEditor

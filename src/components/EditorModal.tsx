@@ -24,9 +24,14 @@ import { DomainSelector } from './DomainSelector';
 import { SmartEditor, SmartEditorRef } from './SmartEditor';
 import { MarkdownToolbar } from './MarkdownToolbar';
 import { TiptapToolbar } from './TiptapToolbar';
+import { EnrichedToolbar } from './EnrichedToolbar';
+import { EnrichedTitleInput } from './EnrichedTitleInput';
+import type { EnrichedEditorBridge } from './EnrichedEditor';
 import { type EditorBridge } from '@10play/tentap-editor';
+import type { OnChangeStateEvent } from 'react-native-enriched';
 import { DomainType } from '../types/Note';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
+import { USE_NATIVE_EDITOR } from '../config/editorMode';
 
 // ─── Public ref ───────────────────────────────────────────────────────────────
 
@@ -109,6 +114,11 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     const { t } = useTranslation();
     const [showDomainToast, setShowDomainToast] = useState(false);
     const [editorBridge, setEditorBridge] = useState<EditorBridge | null>(null);
+    const [enrichedBridge, setEnrichedBridge] = useState<EnrichedEditorBridge | null>(null);
+    // RNE-only: latest formatting state for highlighting toolbar buttons.
+    // For the Tiptap path the toolbar uses useBridgeState internally and
+    // doesn't need this state to be lifted up here.
+    const [enrichedState, setEnrichedState] = useState<OnChangeStateEvent | null>(null);
     const [editorInstance, setEditorInstance] = useState<SmartEditorRef | null>(null);
     const editorRef = useRef<SmartEditorRef>(null);
     const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
@@ -124,7 +134,13 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         editorRef.current = r;
         setEditorInstance(r);
         if (r && editorMode === 'richtext') {
-            setEditorBridge(r.getEditorBridge());
+            // Pull the right bridge based on the active editor implementation.
+            // SmartEditor returns null for whichever path isn't active.
+            if (USE_NATIVE_EDITOR) {
+                setEnrichedBridge(r.getEnrichedBridge());
+            } else {
+                setEditorBridge(r.getEditorBridge());
+            }
         }
     }, [editorMode]);
 
@@ -165,13 +181,20 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
 
         if (visible && editorRef.current) {
             editorRef.current.setText?.(textRef.current);
-            // Retry focus with progressive backoff. iOS WKWebView sometimes
-            // drops the first focus call right after a layout transition
-            // (here: the visible flip triggers translateY 0 → screen, which
-            // is essentially a layout change for the WebView). Retrying
-            // 0/100/300 ms after handles that reliably without delaying
-            // the keyboard for users with a warm WebView.
-            const timers = [0, 100, 300].map(delay =>
+            // Focus retry strategy depends on the active editor:
+            //
+            //   - Native (RNE / UITextView): a single focus call right after
+            //     setText is reliable. UITextView responds synchronously to
+            //     becomeFirstResponder; no race conditions.
+            //
+            //   - WebView (Tiptap): iOS WKWebView sometimes drops the first
+            //     focus call after a layout transition (translateY → screen).
+            //     Retry 0/100/300 ms to ensure the keyboard reliably comes up.
+            //
+            // Skipping the retries on the native path saves the 100-300 ms
+            // perceptual delay the user reported as "still some latency".
+            const delays = USE_NATIVE_EDITOR ? [0] : [0, 100, 300];
+            const timers = delays.map(delay =>
                 setTimeout(() => {
                     if (previousVisibleRef.current) editorRef.current?.focus?.();
                 }, delay),
@@ -245,7 +268,10 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         // Re-push the text in case the open-transition's setText was a
         // no-op against a not-yet-ready editor.
         editorRef.current.setText?.(textRef.current);
-        const timers = [50, 200, 500, 1000].map(delay =>
+        // RNE: a single focus call is reliable (UITextView is synchronous).
+        // Tiptap WebView: needs progressive retries — see below.
+        const delays = USE_NATIVE_EDITOR ? [50] : [50, 200, 500, 1000];
+        const timers = delays.map(delay =>
             setTimeout(() => {
                 if (visibleRef.current) editorRef.current?.focus?.();
             }, delay),
@@ -326,16 +352,32 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                     <TouchableOpacity style={StyleSheet.absoluteFill} onPress={handleClose} activeOpacity={1} />
 
                     <View style={styles.modalSheet}>
-                        {/* Optional title input */}
+                        {/* Optional title input. Branches on USE_NATIVE_EDITOR
+                            so rolling back the editor flag also rolls back the
+                            title input — keeps both surfaces consistent.
+                              - native (USE_NATIVE_EDITOR=true): EnrichedTitleInput
+                                renders inline markdown (`**bold**`, `*italic*`,
+                                etc.) instead of leaking the raw markers.
+                              - WebView fallback (USE_NATIVE_EDITOR=false):
+                                plain TextInput — same as before the migration. */}
                         {showTitle && (
                             <View style={styles.titleContainer}>
-                                <TextInput
-                                    style={[styles.titleInput, { writingDirection: 'auto', textAlign: 'auto' }]}
-                                    value={title}
-                                    onChangeText={onTitleChange}
-                                    placeholder={t('title_placeholder')}
-                                    placeholderTextColor="#999"
-                                />
+                                {USE_NATIVE_EDITOR ? (
+                                    <EnrichedTitleInput
+                                        value={title ?? ''}
+                                        onChangeText={onTitleChange ?? (() => {})}
+                                        placeholder={t('title_placeholder')}
+                                        placeholderTextColor="#999"
+                                    />
+                                ) : (
+                                    <TextInput
+                                        style={[styles.titleInput, { writingDirection: 'auto', textAlign: 'auto' }]}
+                                        value={title}
+                                        onChangeText={onTitleChange}
+                                        placeholder={t('title_placeholder')}
+                                        placeholderTextColor="#999"
+                                    />
+                                )}
                             </View>
                         )}
 
@@ -349,6 +391,7 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
                                     initialContent={text}
                                     onChange={onTextChange}
                                     onEditorReady={() => setEditorReady(true)}
+                                    onEnrichedStateChange={setEnrichedState}
                                     placeholder=""
                                     autoFocus={false}
                                     backgroundColor="#FFFFFF"
@@ -412,16 +455,33 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
 
                     {/* Toolbar — outside modalSheet so it spans the FULL
                         screen width on wide displays (web/tablet) instead of
-                        being awkwardly capped at the 720 px content rail. */}
-                    {editorBridge && (
-                        <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
-                            <TiptapToolbar
-                                editor={editorBridge}
-                                onPinPress={() => onPinChange(!isPinned)}
-                                isPinned={isPinned}
-                                onDismiss={handleClose}
-                            />
-                        </View>
+                        being awkwardly capped at the 720 px content rail.
+                        Branches on USE_NATIVE_EDITOR: each path has its own
+                        toolbar (different bridge shape, different state
+                        propagation mechanism). Same visual layout. */}
+                    {USE_NATIVE_EDITOR ? (
+                        enrichedBridge && (
+                            <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
+                                <EnrichedToolbar
+                                    editor={enrichedBridge}
+                                    state={enrichedState}
+                                    onPinPress={() => onPinChange(!isPinned)}
+                                    isPinned={isPinned}
+                                    onDismiss={handleClose}
+                                />
+                            </View>
+                        )
+                    ) : (
+                        editorBridge && (
+                            <View style={[styles.bottomBar, { paddingBottom: isKeyboardVisible ? 0 : Math.max(insets.bottom, 16) }]}>
+                                <TiptapToolbar
+                                    editor={editorBridge}
+                                    onPinPress={() => onPinChange(!isPinned)}
+                                    isPinned={isPinned}
+                                    onDismiss={handleClose}
+                                />
+                            </View>
+                        )
                     )}
 
                     {/* Domain validation toast — absolute positioned so it
@@ -437,28 +497,35 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     );
 
     // eagerMount path: render with a permanent screen-level View overlay.
-    // CRITICAL: hide via TRANSLATE rather than opacity. iOS WebKit
-    // empirically defers the WebContent process launch when a WKWebView
-    // sits at opacity=0 (treats it as "not needed yet"); but it DOES
-    // launch the process when the WKWebView is in the window and
-    // translated to off-screen coordinates (e.g. translateY: -100000).
-    // The same trick is used by the original <EditorPrewarm /> at App
-    // root — it works because iOS still considers a translated view to
-    // be "visible" for layer/process purposes, just outside the user's
-    // viewport. With opacity:0, our QuickAdd modal's WebContent process
-    // wasn't actually pre-launching at app start, so the first user tap
-    // still paid the full cold-start cost.
+    //
+    // Hiding strategy depends on the active editor implementation:
+    //
+    //   - USE_NATIVE_EDITOR=true (RNE): use opacity: 0. UITextView doesn't
+    //     have a WebContent process to wake up and isn't subject to the
+    //     iOS quirk that defers WKWebView lifecycle when opacity is 0.
+    //     Opacity is cheaper than translate (no layout pass when toggling)
+    //     and avoids the implicit re-layout iOS does when the view moves
+    //     back into viewable bounds.
+    //
+    //   - USE_NATIVE_EDITOR=false (Tiptap WebView): use translateY: -100000.
+    //     iOS WebKit empirically defers the WebContent process launch when
+    //     a WKWebView sits at opacity=0 (treats it as "not needed yet");
+    //     but it DOES launch the process when the WKWebView is in the
+    //     window and translated to off-screen coordinates. The same trick
+    //     is used by the legacy <EditorPrewarm />.
     if (eagerMount) {
         return (
             <View
                 style={[
                     StyleSheet.absoluteFillObject,
-                    {
-                        zIndex: 1000,
-                        // -100000 is far enough off-screen on any device,
-                        // even unfolded foldables / wide displays.
-                        transform: [{ translateY: visible ? 0 : -100000 }],
-                    },
+                    USE_NATIVE_EDITOR
+                        ? { zIndex: 1000, opacity: visible ? 1 : 0 }
+                        : {
+                              zIndex: 1000,
+                              // -100000 is far enough off-screen on any
+                              // device, even unfolded foldables / wide displays.
+                              transform: [{ translateY: visible ? 0 : -100000 }],
+                          },
                 ]}
                 pointerEvents={visible ? 'auto' : 'none'}
             >

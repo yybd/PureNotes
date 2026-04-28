@@ -160,6 +160,11 @@ export const createDataSlice: StateCreator<
 
             const savedNote = await StorageService.saveNote(newNote);
             const notes = [savedNote, ...get().notes];
+            notes.sort((a, b) => {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                return b.updatedAt.getTime() - a.updatedAt.getTime();
+            });
             // No active search at note-create time → defer Fuse index rebuild.
             scheduleSearchInit(notes);
             set({ notes, filteredNotes: notes, isLoading: false });

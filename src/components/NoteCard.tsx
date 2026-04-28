@@ -85,6 +85,57 @@ const stripMarkdown = (text: string): string => {
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 };
 
+// Render a single line of inline markdown (bold / italic / strike / code /
+// underline) into nested <Text> elements so the card title shows the
+// FORMATTING instead of the raw markers like `**bold title**`. Operates on
+// the OUTERMOST markers only — nested markdown (e.g. `**bold *and italic***`)
+// degrades gracefully to bold without re-scanning the inner segment.
+//
+// The regex tries `**` before `*` so bold beats italic on overlapping spans,
+// and bails on lines without any inline marker (the common case) by
+// returning the input string unchanged — letting React skip the array
+// allocation and key-diff cost on every NoteCard render in the FlatList.
+const INLINE_MD_REGEX = /\*\*(.+?)\*\*|__(.+?)__|~~(.+?)~~|`([^`\n]+)`|\*(.+?)\*/g;
+const renderInlineMarkdown = (text: string): React.ReactNode => {
+    if (!text || !/[*_~`]/.test(text)) return text;
+    const out: React.ReactNode[] = [];
+    let lastEnd = 0;
+    let match: RegExpExecArray | null;
+    INLINE_MD_REGEX.lastIndex = 0;
+    while ((match = INLINE_MD_REGEX.exec(text)) !== null) {
+        if (match.index > lastEnd) {
+            out.push(text.substring(lastEnd, match.index));
+        }
+        const key = `${match.index}-${match[0].length}`;
+        if (match[1] !== undefined) {
+            out.push(<Text key={key} style={{ fontWeight: 'bold' }}>{match[1]}</Text>);
+        } else if (match[2] !== undefined) {
+            out.push(<Text key={key} style={{ textDecorationLine: 'underline' }}>{match[2]}</Text>);
+        } else if (match[3] !== undefined) {
+            out.push(<Text key={key} style={{ textDecorationLine: 'line-through' }}>{match[3]}</Text>);
+        } else if (match[4] !== undefined) {
+            out.push(
+                <Text
+                    key={key}
+                    style={{
+                        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                        backgroundColor: '#F0F0F0',
+                    }}
+                >
+                    {match[4]}
+                </Text>,
+            );
+        } else if (match[5] !== undefined) {
+            out.push(<Text key={key} style={{ fontStyle: 'italic' }}>{match[5]}</Text>);
+        }
+        lastEnd = match.index + match[0].length;
+    }
+    if (lastEnd < text.length) {
+        out.push(text.substring(lastEnd));
+    }
+    return out;
+};
+
 const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDismissKeyboard, onSync, onArchive, onEditStart, onEditEnd, onEditContentChange, onEditSelectionChange, onStatusChange, externalEditContent, externalIsPinned, maxEditHeight, editorHorizontalInset = 64, autoEdit, forceExitEdit, onEditRequest, onQuickAddRequest, onEditorReady, style }) => {
     const { t, i18n } = useTranslation();
     // Parse content upfront for autoEdit mode
@@ -548,10 +599,12 @@ const NoteCardImpl: React.FC<NoteCardProps> = ({ note, onPress, onUpdate, onDism
                     </View>
                 ) : (
                     <View style={!isExpanded ? { maxHeight: 100, overflow: 'hidden' } : undefined}>
-                        {/* Title */}
+                        {/* Title — renders inline markdown (`**bold**`,
+                            `*italic*`, etc.) as styled spans instead of
+                            leaking the raw markers into the card. */}
                         {hasTitle && title && (
                             <Text style={[styles.title, { textAlign: getDirection(title) === 'rtl' ? 'right' : 'left' }]} numberOfLines={isExpanded ? undefined : 2}>
-                                {title}
+                                {renderInlineMarkdown(title)}
                             </Text>
                         )}
                         {/* Body preview */}

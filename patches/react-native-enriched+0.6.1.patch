@@ -1,0 +1,182 @@
+diff --git a/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm b/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm
+index 66c2251..6e6aa2e 100644
+--- a/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm
++++ b/node_modules/react-native-enriched/ios/EnrichedTextInputView.mm
+@@ -33,6 +33,16 @@ @interface EnrichedTextInputView () <
+     RCTEnrichedTextInputViewViewProtocol, UITextViewDelegate,
+     UIGestureRecognizerDelegate, NSTextStorageDelegate, NSObject>
+ 
++// PureNotes patch: per-paragraph BiDi direction detection. iOS resolves
++// `NSTextAlignmentNatural` based on the system locale, so Hebrew/Arabic
++// paragraphs in an English-locale app stay left-aligned. This hook walks
++// each paragraph, finds the first strong directional character (Unicode
++// BiDi P2/P3), and sets `alignment` + `baseWritingDirection` on the
++// paragraph style accordingly. List bullets / checkbox markers follow the
++// paragraph's leading edge, so they automatically appear on the correct
++// side.
++- (void)refreshParagraphDirections;
++
+ @end
+ 
+ @implementation EnrichedTextInputView {
+@@ -770,6 +780,10 @@ - (void)updateProps:(Props::Shared const &)props
+ 
+     textView.typingAttributes = defaultTypingAttributes;
+     textView.selectedRange = prevSelectedRange;
++    // PureNotes patch: apply per-paragraph BiDi direction after style-prop
++    // re-parse. anyTextMayHaveBeenModified isn't called here, so we have to
++    // refresh directions explicitly.
++    [self refreshParagraphDirections];
+ 
+     // make sure the newest lineHeight is applied
+     [self refreshLineHeight];
+@@ -803,6 +817,10 @@ - (void)updateProps:(Props::Shared const &)props
+       [parser replaceWholeFromHtml:initiallyProcessedHtml];
+     }
+     textView.selectedRange = NSRange(textView.textStorage.string.length, 0);
++    // PureNotes patch: apply per-paragraph BiDi direction after the initial
++    // parse of `defaultValue`. anyTextMayHaveBeenModified isn't called here,
++    // so the user would see Hebrew left-aligned until they made any edit.
++    [self refreshParagraphDirections];
+   }
+ 
+   // placeholderTextColor
+@@ -1822,6 +1840,10 @@ - (void)anyTextMayHaveBeenModified {
+   // all the visible (not meta) attributes handling in the ranges that could
+   // have changed
+   [attributesManager handleDirtyRangesStyling];
++  // PureNotes patch: per-paragraph BiDi direction detection. Must run
++  // after handleDirtyRangesStyling so list/checkbox/etc. paragraph styles
++  // are already in place (we mutate the same pStyle to set direction).
++  [self refreshParagraphDirections];
+   // update height on each character change
+   [self tryUpdatingHeight];
+   // update active styles as well
+@@ -2330,4 +2352,127 @@ - (CGRect)frameForAttachment:(ImageAttachment *)attachment
+ 
+   return CGRectIntegral(rect);
+ }
++
++// MARK: - PureNotes patch: per-paragraph BiDi direction
++
++// Returns YES if `c` is a strong RTL character (Hebrew / Arabic / etc.).
++// Mirrors Unicode BiDi class strong R + AL ranges that matter for our
++// content (Hebrew + Arabic + Arabic Presentation Forms). We don't pull in
++// ICU just to look up a property — the ranges below are stable and small.
++static inline BOOL pnIsStrongRTL(unichar c) {
++  return (c >= 0x0590 && c <= 0x05FF) ||  // Hebrew
++         (c >= 0x0600 && c <= 0x06FF) ||  // Arabic
++         (c >= 0x0700 && c <= 0x074F) ||  // Syriac
++         (c >= 0x0750 && c <= 0x077F) ||  // Arabic Supplement
++         (c >= 0x0780 && c <= 0x07BF) ||  // Thaana
++         (c >= 0x07C0 && c <= 0x07FF) ||  // NKo
++         (c >= 0x0800 && c <= 0x083F) ||  // Samaritan
++         (c >= 0x0840 && c <= 0x085F) ||  // Mandaic
++         (c >= 0x08A0 && c <= 0x08FF) ||  // Arabic Extended-A
++         (c >= 0xFB1D && c <= 0xFB4F) ||  // Hebrew Presentation Forms
++         (c >= 0xFB50 && c <= 0xFDFF) ||  // Arabic Presentation Forms-A
++         (c >= 0xFE70 && c <= 0xFEFF);    // Arabic Presentation Forms-B
++}
++
++// Returns YES if `c` is a strong LTR character (basic Latin + Latin
++// extended + Greek + Cyrillic). Anything else (digits, punctuation,
++// whitespace, ZWSP, control marks) is "weak" and skipped during scan.
++static inline BOOL pnIsStrongLTR(unichar c) {
++  return (c >= 'A' && c <= 'Z') ||
++         (c >= 'a' && c <= 'z') ||
++         (c >= 0x00C0 && c <= 0x024F) ||  // Latin-1 Supplement + Latin Ext
++         (c >= 0x0370 && c <= 0x03FF) ||  // Greek
++         (c >= 0x0400 && c <= 0x04FF);    // Cyrillic
++}
++
++- (void)refreshParagraphDirections {
++  NSTextStorage *storage = textView.textStorage;
++  NSString *fullString = storage.string;
++  NSUInteger length = fullString.length;
++  if (length == 0) return;
++
++  NSUInteger location = 0;
++  while (location < length) {
++    NSRange paragraphRange =
++        [fullString paragraphRangeForRange:NSMakeRange(location, 0)];
++    if (paragraphRange.length == 0) {
++      location = NSMaxRange(paragraphRange) + 1;
++      continue;
++    }
++
++    // BiDi P2/P3: scan for the first strong directional character. Skip
++    // ZWSP, bidi control marks, whitespace, digits, punctuation.
++    BOOL isRTL = NO;
++    BOOL foundStrong = NO;
++    for (NSUInteger i = paragraphRange.location;
++         i < NSMaxRange(paragraphRange) && !foundStrong; i++) {
++      unichar c = [fullString characterAtIndex:i];
++      if (pnIsStrongRTL(c)) {
++        isRTL = YES;
++        foundStrong = YES;
++      } else if (pnIsStrongLTR(c)) {
++        isRTL = NO;
++        foundStrong = YES;
++      }
++    }
++    // No strong char in paragraph (e.g. only digits / whitespace /
++    // newline). Leave the existing direction untouched — flipping
++    // empty paragraphs to LTR every keystroke causes caret jitter.
++    if (!foundStrong) {
++      location = NSMaxRange(paragraphRange);
++      continue;
++    }
++
++    NSWritingDirection writingDir = isRTL ? NSWritingDirectionRightToLeft
++                                          : NSWritingDirectionLeftToRight;
++    NSTextAlignment alignment = isRTL ? NSTextAlignmentRight
++                                       : NSTextAlignmentLeft;
++
++    // Mutate the existing paragraph style so we preserve headIndent,
++    // line height, textLists (list/checkbox metadata), etc.
++    NSParagraphStyle *existingStyle =
++        [storage attribute:NSParagraphStyleAttributeName
++                   atIndex:paragraphRange.location
++            effectiveRange:NULL];
++    NSMutableParagraphStyle *pStyle = existingStyle
++        ? [existingStyle mutableCopy]
++        : [[NSMutableParagraphStyle alloc] init];
++    if (pStyle.alignment == alignment &&
++        pStyle.baseWritingDirection == writingDir) {
++      // Already correct — skip the addAttribute to avoid triggering
++      // textStorage delegate callbacks unnecessarily.
++      location = NSMaxRange(paragraphRange);
++      continue;
++    }
++    pStyle.alignment = alignment;
++    pStyle.baseWritingDirection = writingDir;
++    [storage addAttribute:NSParagraphStyleAttributeName
++                    value:pStyle
++                    range:paragraphRange];
++
++    location = NSMaxRange(paragraphRange);
++  }
++
++  // Also update typingAttributes for the current selection so that
++  // a freshly-created empty paragraph (e.g. after Enter at the end of
++  // a Hebrew paragraph) keeps the same direction until proven otherwise.
++  if (textView.selectedRange.location <= length) {
++    NSUInteger probeLoc = textView.selectedRange.location > 0
++        ? textView.selectedRange.location - 1
++        : 0;
++    if (probeLoc < length) {
++      NSParagraphStyle *currentStyle =
++          [storage attribute:NSParagraphStyleAttributeName
++                     atIndex:probeLoc
++              effectiveRange:NULL];
++      if (currentStyle != nil) {
++        NSMutableDictionary *typing =
++            [textView.typingAttributes mutableCopy];
++        typing[NSParagraphStyleAttributeName] = [currentStyle copy];
++        textView.typingAttributes = typing;
++      }
++    }
++  }
++}
++
+ @end
