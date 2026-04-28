@@ -66,7 +66,12 @@ class LocalFileBookmark: NSObject {
     
     do {
       var isStale = false
-      let url = try URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale)
+      #if targetEnvironment(macCatalyst)
+      let resolveOptions: URL.BookmarkResolutionOptions = [.withoutUI, .withSecurityScope]
+      #else
+      let resolveOptions: URL.BookmarkResolutionOptions = [.withoutUI]
+      #endif
+      let url = try URL(resolvingBookmarkData: bookmarkData, options: resolveOptions, relativeTo: nil, bookmarkDataIsStale: &isStale)
       
       if isStale {
         print("⚠️ Bookmark is stale, re-saving")
@@ -206,7 +211,12 @@ class LocalFileBookmark: NSObject {
     
     do {
       var isStale = false
-      let dirUrl = try URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale)
+      #if targetEnvironment(macCatalyst)
+      let resolveOptions: URL.BookmarkResolutionOptions = [.withoutUI, .withSecurityScope]
+      #else
+      let resolveOptions: URL.BookmarkResolutionOptions = [.withoutUI]
+      #endif
+      let dirUrl = try URL(resolvingBookmarkData: bookmarkData, options: resolveOptions, relativeTo: nil, bookmarkDataIsStale: &isStale)
       
       let didStartAccessing = dirUrl.startAccessingSecurityScopedResource()
       defer {
@@ -230,7 +240,12 @@ class LocalFileBookmark: NSObject {
         }
       }
       
-      let bookmarkData = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
+      #if targetEnvironment(macCatalyst)
+      let bookmarkOptions: URL.BookmarkCreationOptions = [.withSecurityScope]
+      #else
+      let bookmarkOptions: URL.BookmarkCreationOptions = [.minimalBookmark]
+      #endif
+      let bookmarkData = try url.bookmarkData(options: bookmarkOptions, includingResourceValuesForKeys: nil, relativeTo: nil)
       UserDefaults.standard.set(bookmarkData, forKey: self.bookmarkKey)
       
       print("💾 Saved bookmark for: \(url.path)")
