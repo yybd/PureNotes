@@ -20,8 +20,31 @@ import {
 } from '@10play/tentap-editor';
 
 
+// Remove TenTap bridges that this app doesn't use — every removed extension
+// shrinks the WebView's JS bundle and shaves init time off iOS WebKit cold
+// start (the heaviest path on iPad first-tap). Names match each extension's
+// internal Tiptap `name` property:
+//
+//   - 'placeholder'  → unused placeholder text bridge
+//   - 'image'        → personal markdown notes don't carry inline images
+//   - 'color'        → not a standard markdown construct; the markdown
+//                       converter never emits color styles
+//   - 'highlight'    → same as color — not present in user content
+//   - 'dropCursor'   → visual-only (drag indicator); has no content impact
+//
+// Kept (DO NOT remove without verifying user content): bold, italic, strike,
+// underline, code, heading, bulletList, orderedList, listItem, blockquote,
+// taskList, link, hardBreak, history, core. These can all appear in
+// existing markdown notes — removing them would silently lose formatting.
+const REMOVED_BRIDGE_NAMES = new Set([
+    'placeholder',
+    'image',
+    'color',
+    'highlight',
+    'dropCursor',
+]);
 const bridgeExtensions = TenTapStartKit.filter(
-    (ext) => ext.name !== 'placeholder'
+    (ext) => !REMOVED_BRIDGE_NAMES.has(ext.name)
 );
 
 // ─── Public ref interface ────────────────────────────────────────────────────
@@ -53,12 +76,19 @@ export interface TiptapEditorProps {
 // Once the full stylesheet is applied by the browser, the later rule
 // (body { opacity: 1 }) takes effect and the content appears styled.
 
+// CSS minor cleanups (none of these change rendering on the iPad/iPhone/web
+// targets — they're all parser-side savings, shaving a few µs off the CSS
+// parse during cold start):
+//   - removed `-ms-overflow-style: none` (Internet Explorer-only; ignored)
+//   - removed `overflow-wrap: break-word` (alias of word-wrap; redundant)
+//   - removed `margin-bottom: 0px` from task-list li (the default already)
 const buildCSS = (bg: string) => `
     html, body {
         margin: 0;
         padding: 0;
         height: 100%;
         overflow: hidden;
+        background-color: ${bg};
     }
     #root {
         height: 100%;
@@ -68,15 +98,12 @@ const buildCSS = (bg: string) => `
         overflow-y: auto !important;
         overflow-x: hidden !important;
         scrollbar-width: none;
-        -ms-overflow-style: none;
     }
     #root > div:nth-of-type(1)::-webkit-scrollbar {
         display: none;
     }
-    html, body, .ProseMirror {
-        background-color: ${bg} !important;
-    }
     .ProseMirror {
+        background-color: ${bg};
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         font-size: 16px;
         line-height: 1.5;
@@ -84,7 +111,6 @@ const buildCSS = (bg: string) => `
         min-height: 100%;
         box-sizing: border-box;
         outline: none;
-        overflow-wrap: break-word;
         word-wrap: break-word;
         word-break: break-word;
     }
@@ -111,7 +137,6 @@ const buildCSS = (bg: string) => `
     .ProseMirror ul[data-type="taskList"] li {
         display: flex;
         align-items: flex-start;
-        margin-bottom: 0px;
     }
     .ProseMirror ul[data-type="taskList"] li > label {
         flex: 0 0 auto;
