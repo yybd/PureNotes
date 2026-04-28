@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     StyleSheet,
+    Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -37,19 +38,25 @@ export const QuickAddInput: React.FC<QuickAddInputProps> = ({
 
     return (
         // Outer wrapper paints the gray chrome (full-width in minimal,
-        // capped at 720 in default). Inner row holds the controls and
-        // always stays capped at 720 so they sit on the readable rail.
-        <View style={[styles.barOuter, { paddingBottom: bottomPadding }]}>
+        // capped at 720 in default) AND acts as the open-modal hit
+        // target — tapping anywhere on the gray (including the wings on
+        // wide screens and the safe-area padding below) opens the
+        // QuickAdd modal. The inner sendButton is a TouchableOpacity, so
+        // its press is captured by the responder system before bubbling
+        // up to the outer Pressable.
+        <Pressable
+            style={[styles.barOuter, { paddingBottom: bottomPadding }]}
+            onPress={onOpenModal}
+        >
             <View style={styles.barInner}>
-                <TouchableOpacity
-                    style={styles.fakeInput}
-                    onPress={onOpenModal}
-                    activeOpacity={0.7}
-                >
+                {/* fakeInput no longer needs its own Touchable — the
+                    outer Pressable handles taps on it (and on the gray
+                    around it) uniformly. */}
+                <View style={styles.fakeInput}>
                     <Text style={previewText ? styles.previewText : styles.placeholder} numberOfLines={1}>
                         {previewText ?? t('add_note_placeholder')}
                     </Text>
-                </TouchableOpacity>
+                </View>
 
                 <TouchableOpacity
                     style={[styles.sendButton, (!text.trim() || isSending) && styles.sendButtonDisabled]}
@@ -61,7 +68,7 @@ export const QuickAddInput: React.FC<QuickAddInputProps> = ({
                         : <Ionicons name="send" size={20} color="#000000" />}
                 </TouchableOpacity>
             </View>
-        </View>
+        </Pressable>
     );
 };
 
