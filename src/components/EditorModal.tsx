@@ -13,6 +13,7 @@ import {
     Platform,
     ActivityIndicator,
     StyleSheet,
+    InteractionManager,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,59 +113,82 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         }
     }, [editorMode]);
 
-    // Reset bridge when modal hides
-    useEffect(() => {
-        if (!visible) {
-            setEditorBridge(null);
-            setEditorInstance(null);
-        }
-    }, [visible]);
-
-    // Defer mounting the (heavy) SmartEditor until the modal's fade animation
-    // has had a chance to start. Mounting the WebView synchronously with the
-    // modal becoming visible competes with the animation thread and causes the
-    // first-open jank. ~80ms is enough for the fade to begin paint while still
-    // letting the editor be ready before the user can move their finger to type.
+    // Mount the SmartEditor (and its WebView) at app start — NOT on the
+    // first time the user taps "new note". The WebView's cold start
+    // (~300-800 ms, 2-3× more on iPad) is the dominant cost of opening
+    // the editor; if it happens during the user's tap they wait for it.
+    // By pre-mounting in the background while the user is browsing the
+    // notes list, the editor is already alive and ready by the time they
+    // tap, and the modal opens at near-zero cost.
+    //
+    // InteractionManager defers until React Native's interaction queue
+    // is idle — so this doesn't compete with the initial notes-list
+    // render. The WebView mount + Tiptap load happens silently in the
+    // background between t=~100 ms and t=~600 ms after launch.
+    //
+    // The editor stays mounted across every open/close cycle (the modal's
+    // visible prop just toggles native presentation, not the React tree),
+    // so subsequent opens are also instant.
     const [shouldMountEditor, setShouldMountEditor] = useState(false);
     useEffect(() => {
-        if (!visible) {
-            setShouldMountEditor(false);
-            return;
+        const handle = InteractionManager.runAfterInteractions(() => {
+            setShouldMountEditor(true);
+        });
+        return () => handle.cancel();
+    }, []);
+
+    // Track previous visibility to detect the false→true transition.
+    const previousVisibleRef = useRef(false);
+    // Mirror the latest text in a ref so the open-transition effect reads
+    // the freshest value without re-firing on every keystroke (text would
+    // otherwise update on every change via onTextChange).
+    const textRef = useRef(text);
+    textRef.current = text;
+    useEffect(() => {
+        const wasVisible = previousVisibleRef.current;
+        previousVisibleRef.current = visible;
+        if (!visible || wasVisible) return;
+        // Modal just opened. On the very first open editorRef is still
+        // null (the editor mounts after this effect commits) and SmartEditor's
+        // `initialContent` + `autoFocus` props handle setup. On every
+        // subsequent open the editor is already alive and sticky — we
+        // need to push the parent's text in and re-focus manually, since
+        // the autoFocus prop only takes effect on the editor's first mount.
+        if (editorRef.current) {
+            editorRef.current.setText?.(textRef.current);
+            // Defer focus to next tick so the setText bridge command is
+            // dispatched first and queued ahead of focus on the WebView.
+            setTimeout(() => editorRef.current?.focus?.(), 0);
         }
-        const id = setTimeout(() => setShouldMountEditor(true), 80);
-        return () => clearTimeout(id);
     }, [visible]);
 
     // Track Tiptap WebView readiness so we can mask the empty editor area
-    // with a spinner during the cold-start window. Reset on every close so
-    // the next open re-evaluates readiness for the freshly-mounted WebView.
+    // with a spinner during the cold-start window. Once the editor reports
+    // ready, it stays ready across visibility toggles since we now keep
+    // it mounted. So the spinner only ever appears on the very first open.
     const [editorReady, setEditorReady] = useState(false);
-    // Spinner visibility is gated separately: only flip it on if loading
-    // actually drags past LOADER_DELAY_MS. Warm opens still spin up a fresh
-    // WebView per open and typically finish in 200–300 ms; we want the
-    // spinner only on truly cold starts so warm users never see it flash.
-    // 400 ms covers most warm cases while still kicking in for cold starts.
     const LOADER_DELAY_MS = 400;
     const [showLoader, setShowLoader] = useState(false);
-    // Mirror editorReady in a ref so the deferred timer can read the LATEST
-    // value at fire time. Without this the timer's closure captures the
-    // value from when it was scheduled (false) and shows the spinner after
-    // the editor has already become ready and the cursor is visible.
+    // Mirror editorReady in a ref so the deferred timer reads the LATEST
+    // value at fire time, not the stale closure capture from scheduling.
     const editorReadyRef = useRef(editorReady);
     editorReadyRef.current = editorReady;
     useEffect(() => {
         if (!visible) {
-            setEditorReady(false);
+            // Hide spinner on close, but DON'T reset editorReady — the
+            // editor remains alive and ready across opens, so the spinner
+            // stays inactive on every open after the first.
             setShowLoader(false);
             return;
         }
+        // Skip spinner schedule entirely on warm opens — editor is ready.
+        if (editorReadyRef.current) return;
         const id = setTimeout(() => {
             if (!editorReadyRef.current) setShowLoader(true);
         }, LOADER_DELAY_MS);
         return () => clearTimeout(id);
     }, [visible]);
-    // Hide the spinner the moment the editor reports ready — covers the
-    // case where the timer already fired and the spinner is on screen.
+    // Hide the spinner the moment the editor reports ready.
     useEffect(() => {
         if (editorReady) setShowLoader(false);
     }, [editorReady]);

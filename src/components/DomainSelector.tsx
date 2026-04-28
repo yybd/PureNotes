@@ -60,12 +60,8 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
 
     // ── Expanded state / filter mode ──
     return (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.container}
-            style={[mode === 'filter' ? styles.filterScrollView : styles.selectScrollView, style]}
-            keyboardShouldPersistTaps="always"
+        <View
+            style={[styles.container, mode === 'filter' ? styles.filterContainer : styles.selectContainer, style]}
         >
             {mode === 'filter' && selectedDomain && (
                 <TouchableOpacity
@@ -99,10 +95,15 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                             color={isSelected ? '#FFFFFF' : config.color}
                             style={styles.icon}
                         />
-                        <Text style={[
-                            styles.label,
-                            { color: isSelected ? '#FFFFFF' : config.color, fontWeight: isSelected ? '700' : '500' },
-                        ]}>
+                        <Text 
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.8}
+                            style={[
+                                styles.label,
+                                { color: isSelected ? '#FFFFFF' : config.color, fontWeight: isSelected ? '700' : '500' },
+                            ]}
+                        >
                             {t(`domain_${domain}`)}
                             {domainCounts && domainCounts[domain] !== undefined && (
                                 <Text style={[
@@ -124,44 +125,42 @@ export const DomainSelector: React.FC<DomainSelectorProps> = ({ selectedDomain, 
                     <Ionicons name="chevron-up" size={16} color="#666" />
                 </TouchableOpacity>
             )}
-        </ScrollView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 8,
         paddingVertical: 8,
         alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'center',
-        flexGrow: 1,
+        width: '100%',
     },
     collapsedRow: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         flexDirection: 'row',
     },
-    selectScrollView: {
-        maxHeight: 70,
+    selectContainer: {
         marginBottom: 8,
-        width: '100%',
     },
-    filterScrollView: {
-        maxHeight: 70,
+    filterContainer: {
         backgroundColor: 'transparent',
-        width: '100%',
     },
     chip: {
         flexDirection: 'row-reverse',
         alignItems: 'center',
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
         paddingVertical: 8,
         borderRadius: 20,
-        marginHorizontal: 4,
+        marginHorizontal: 2,
         marginVertical: 4,
         borderWidth: 1,
         borderColor: 'transparent',
+        flexShrink: 1,
+        minWidth: 0,
     },
     placeholderChip: {
         backgroundColor: '#f0f0f0',

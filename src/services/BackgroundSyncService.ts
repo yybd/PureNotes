@@ -49,6 +49,12 @@ class BackgroundSyncService {
     private async tick(): Promise<void> {
         if (!this.isAppActive) return;
         if (this.isSyncing) return;
+        // Skip while the user is editing a note. `lockedNoteIds` is non-empty
+        // whenever a card is in inline-edit mode or open in the EditorModal.
+        // Polling the file system + rebuilding the Fuse search index during
+        // typing produces visible jank on the JS thread; deferring is safe
+        // because the user's local edits are the source of truth anyway.
+        if (useNotesStore.getState().lockedNoteIds.size > 0) return;
         this.isSyncing = true;
         try {
             const syncFromExternal = useNotesStore.getState().syncFromExternal;

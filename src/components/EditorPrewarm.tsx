@@ -6,18 +6,23 @@
 // background while the user is still browsing the notes list.
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, InteractionManager } from 'react-native';
 import { TiptapEditor } from './TiptapEditor';
 
 export const EditorPrewarm: React.FC = () => {
-    // Mount only after the first paint to avoid stealing CPU from the initial
-    // notes-list render. A tiny defer keeps the cold-start of the screen snappy
-    // while still finishing the WebView warm-up well before the user can tap.
+    // Mount as soon as React Native's interaction queue is idle. Replaces a
+    // hard-coded setTimeout(200) which over-delayed the prewarm even when the
+    // JS thread was already free — costing up to 200 ms on the very first
+    // "new note" tap, which is precisely the cold-start the prewarm exists
+    // to eliminate. InteractionManager waits exactly as long as needed and
+    // no longer, so the WebView mount overlaps with idle time after first paint.
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        const id = setTimeout(() => setMounted(true), 200);
-        return () => clearTimeout(id);
+        const handle = InteractionManager.runAfterInteractions(() => {
+            setMounted(true);
+        });
+        return () => handle.cancel();
     }, []);
 
     if (!mounted) return null;

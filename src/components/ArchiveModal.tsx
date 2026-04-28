@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
     useWindowDimensions
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
@@ -31,6 +32,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
     const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
     const { loadNotes } = useNotesStore();
     const { height: screenHeight } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
 
     const fetchArchivedNotes = async () => {
         setIsLoading(true);
@@ -182,7 +184,7 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ visible, onClose }) 
                                 renderItem={renderItem}
                                 contentContainerStyle={styles.listContent}
                             />
-                            <View style={styles.footer}>
+                            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                                 <TouchableOpacity
                                     style={styles.emptyArchiveButton}
                                     onPress={handleEmptyArchive}

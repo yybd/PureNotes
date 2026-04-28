@@ -554,7 +554,7 @@ export const NotesListScreen = ({ navigation }: any) => {
                         isPinned={quickNotePinned}
                         domain={quickNoteDomain}
                         isSending={isSending}
-                        bottomPadding={insets.bottom > 0 ? insets.bottom : 16}
+                        bottomPadding={Platform.OS === 'android' ? Math.max(insets.bottom, 60) : (insets.bottom > 0 ? insets.bottom : 16)}
                         onTextChange={(text) => handleTextChangeWithListContinuation(text, quickNoteText, setQuickNoteText)}
                         onPinChange={(newPinned) => {
                             setQuickNotePinned(newPinned);
