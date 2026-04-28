@@ -210,7 +210,8 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
             // Tiptap is ready to accept focus, the autofocus pulse is already
             // gone, leaving the user staring at an editor with no caret.
             if (autoFocus) {
-                editor.focus();
+                const delay = Platform.OS === 'android' ? 250 : 0;
+                setTimeout(() => editor.focus(), delay);
             }
         // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [editorState.isReady]);

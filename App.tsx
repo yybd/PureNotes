@@ -126,15 +126,14 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
-      {/* iOS WebKit warm-up. Renders eagerly at App root — its WKWebView
-          is in the visible window from t=0 (positioned offscreen), which
-          is what triggers iOS to spawn the WebContent process and load
-          the WebKit framework into kernel/process caches in the background
-          while the user is still browsing the notes list.
-          Critical for iPad, where the cold WebContent process launch
-          alone takes 4-6 seconds. By the time the user taps "new note",
-          the modal's NEW WKWebView spins up against warm OS caches
-          rather than from cold. */}
+      {/* iOS WebKit warm-up. Renders eagerly at App root with its
+          WKWebView in the visible window from t=0 (positioned offscreen).
+          Best-effort — iOS aggressively kills WebContent processes for
+          non-browser apps without the com.apple.developer.web-browser-engine
+          entitlements, so the warm-up benefit may be reclaimed by iOS
+          before the user taps. The fundamental WebView cold-start on iPad
+          (4-10 s) cannot be fully eliminated for this app type — see
+          Apple's Press Restrictions on browser-engine entitlements. */}
       <EditorPrewarm />
     </GestureHandlerRootView>
   );

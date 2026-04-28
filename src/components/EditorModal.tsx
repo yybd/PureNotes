@@ -113,14 +113,14 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     }, [editorMode]);
 
     // Mount the SmartEditor on the FIRST visible=true and keep it mounted
-    // across every subsequent open/close cycle. Pre-mounting inside the
-    // hidden Modal does NOT work on iOS: the WKWebView only triggers a
-    // WebContent process launch when it's in a visible window, and a
-    // <Modal visible={false}> hides its children from the visible window.
-    // The cold-start mitigation for the FIRST tap is handled by the
-    // <EditorPrewarm /> at App root — a separate WKWebView positioned
-    // off-screen but in the visible window, which warms iOS WebKit's
-    // shared resources (GPU process, WebKit framework, kernel caches).
+    // across every subsequent open/close cycle. We can't pre-mount inside
+    // the hidden Modal — iOS only launches the WebContent process once the
+    // WKWebView is in a visible window, and <Modal visible={false}> hides
+    // its children from the visible window. The cold-start mitigation for
+    // the FIRST tap is handled by <EditorPrewarm /> at App root — a
+    // separate WKWebView positioned off-screen but in the visible window,
+    // which warms iOS WebKit's shared resources (GPU process + WebKit
+    // framework + kernel caches) ahead of the user's first tap.
     const [shouldMountEditor, setShouldMountEditor] = useState(false);
     useEffect(() => {
         if (visible && !shouldMountEditor) {
@@ -145,11 +145,12 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         // subsequent open the editor is already alive and sticky — we
         // need to push the parent's text in and re-focus manually, since
         // the autoFocus prop only takes effect on the editor's first mount.
-        if (editorRef.current) {
+        if (visible && editorRef.current) {
             editorRef.current.setText?.(textRef.current);
-            // Defer focus to next tick so the setText bridge command is
-            // dispatched first and queued ahead of focus on the WebView.
-            setTimeout(() => editorRef.current?.focus?.(), 0);
+            // Android needs a slight delay after the visibility change for the
+            // keyboard to reliably trigger on a pre-mounted WebView.
+            const delay = Platform.OS === 'android' ? 200 : 0;
+            setTimeout(() => editorRef.current?.focus?.(), delay);
         }
     }, [visible]);
 
@@ -244,10 +245,6 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     return (
         <Modal
             visible={visible}
-            // "fade" is roughly half the cost of "slide" on the JS+native
-            // bridge while still giving a clean visual transition. The slide
-            // animation interleaves layout work with the WebView mount and
-            // measurably delays the editor becoming interactive.
             animationType="fade"
             transparent={true}
             onRequestClose={handleClose}
