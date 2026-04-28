@@ -5,10 +5,23 @@
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { useNotesStore } from '../stores/notesStore';
 
-const DEFAULT_INTERVAL_MS = Platform.OS === 'android' ? 8000 : 5000;
+// 30 s interval (was 5-8 s). The Xcode logs showed 8+ file listings of
+// 164 files each in the first ~30 s after launch, choking the JS thread
+// while the WebView was trying to mount. External edits (e.g., from
+// Obsidian on another device) propagating in 30 s instead of 5 s is a
+// fine trade-off; foreground transitions still trigger an immediate sync
+// via handleAppStateChange below.
+const DEFAULT_INTERVAL_MS = 30000;
+
+// Skip the very first periodic tick by this much, so it does NOT fire
+// while iOS is still launching the WebView's WebContent process (which
+// can take 4-6 s on iPad). Once that's done the first periodic tick is
+// fine. AppState foreground transitions still trigger a tick immediately.
+const STARTUP_GRACE_MS = 30000;
 
 class BackgroundSyncService {
     private intervalId: ReturnType<typeof setInterval> | null = null;
+    private startupTimerId: ReturnType<typeof setTimeout> | null = null;
     private intervalMs: number = DEFAULT_INTERVAL_MS;
     private appStateSub: { remove: () => void } | null = null;
     private isAppActive: boolean = AppState.currentState === 'active';
@@ -21,12 +34,25 @@ class BackgroundSyncService {
         // Track foreground/background to skip ticks while backgrounded
         this.appStateSub = AppState.addEventListener('change', this.handleAppStateChange);
 
-        this.intervalId = setInterval(() => {
+        // Defer the FIRST periodic tick by STARTUP_GRACE_MS to keep the
+        // JS thread free during the WebView's cold-start window. The
+        // initial `loadNotes()` from NotesListScreen mount has already
+        // populated the store by the time the user can interact, so
+        // there's nothing the user is waiting for during the grace period.
+        this.startupTimerId = setTimeout(() => {
+            this.startupTimerId = null;
             this.tick().catch(() => {});
-        }, this.intervalMs);
+            this.intervalId = setInterval(() => {
+                this.tick().catch(() => {});
+            }, this.intervalMs);
+        }, STARTUP_GRACE_MS);
     }
 
     stop(): void {
+        if (this.startupTimerId !== null) {
+            clearTimeout(this.startupTimerId);
+            this.startupTimerId = null;
+        }
         if (this.intervalId !== null) {
             clearInterval(this.intervalId);
             this.intervalId = null;

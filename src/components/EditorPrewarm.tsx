@@ -1,32 +1,27 @@
 // EditorPrewarm.tsx
-// Warms the Tiptap WebView at app startup so the *first* time the user opens
-// the editor modal it doesn't pay the ~300–500ms cold-start cost (WebView
-// native module load + Tiptap JS bundle init in the WebView). Renders a tiny
-// off-screen, non-interactive editor instance that initializes in the
-// background while the user is still browsing the notes list.
+// Warms iOS WebKit at app startup. Renders a tiny off-screen, non-interactive
+// TiptapEditor whose WKWebView lives in the visible window from t=0 — that's
+// what triggers iOS to spawn the WebContent process (4-6 seconds on iPad)
+// and load the WebKit framework into kernel/process memory caches.
+//
+// CRITICAL: this MUST mount eagerly (no setTimeout / no InteractionManager).
+// The expensive part — iOS WebContent process launch + GPU process spin-up —
+// happens NATIVELY off the JS thread, regardless of when JS runs. What we
+// control is when the WKWebView is added to the view hierarchy. Adding it at
+// t=0 vs t=200 ms is exactly the latency the user feels on the first
+// "new note" tap, because by then the WebKit framework is in OS caches and
+// the modal's NEW WKWebView spins up much faster (1-2 s instead of 6 s).
+//
+// Putting it inside an RN <Modal visible={false}> doesn't work — iOS only
+// launches the WebContent process when the WKWebView is in a visible
+// window. Hidden modals don't qualify. This component sits at App root in
+// the actual visible window (offscreen via top: -10000), which does qualify.
 
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { TiptapEditor } from './TiptapEditor';
 
 export const EditorPrewarm: React.FC = () => {
-    // Mount as soon as React Native's interaction queue is idle. Replaces a
-    // hard-coded setTimeout(200) which over-delayed the prewarm even when the
-    // JS thread was already free — costing up to 200 ms on the very first
-    // "new note" tap, which is precisely the cold-start the prewarm exists
-    // to eliminate. InteractionManager waits exactly as long as needed and
-    // no longer, so the WebView mount overlaps with idle time after first paint.
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        const handle = InteractionManager.runAfterInteractions(() => {
-            setMounted(true);
-        });
-        return () => handle.cancel();
-    }, []);
-
-    if (!mounted) return null;
-
     return (
         <View style={styles.hidden} pointerEvents="none" accessible={false}>
             <TiptapEditor initialHtml="" autoFocus={false} />

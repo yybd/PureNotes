@@ -65,6 +65,7 @@
     },
     "plugins": [
       "@bacons/apple-targets",
+      "./targets/android-widget/plugin",
       "expo-document-picker",
       "react-native-cloud-storage",
       "expo-localization"

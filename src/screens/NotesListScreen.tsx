@@ -9,7 +9,6 @@ import {
     Platform,
     Keyboard,
     RefreshControl,
-    AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
@@ -97,7 +96,6 @@ export const NotesListScreen = ({ navigation }: any) => {
     const [refreshing, setRefreshing] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isQuickNoteActive, setIsQuickNoteActive] = useState(false);
-    const appState = useRef(AppState.currentState);
     const quickAddInputRef = useRef<QuickAddInputRef>(null);
     const flatListRef = useRef<FlatList>(null);
     const insets = useSafeAreaInsets();
@@ -195,23 +193,13 @@ export const NotesListScreen = ({ navigation }: any) => {
         openWhenReady();
     }, [shouldOpenQuickAdd]);
 
-    // Handle AppState changes (Auto-refresh on foreground)
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', nextAppState => {
-            if (
-                appState.current.match(/inactive|background/) &&
-                nextAppState === 'active'
-            ) {
-                loadNotes();
-            }
-
-            appState.current = nextAppState;
-        });
-
-        return () => {
-            subscription.remove();
-        };
-    }, [loadNotes]);
+    // The previous AppState listener here called loadNotes() on every
+    // foreground transition. Removed because it duplicated work already
+    // handled by BackgroundSyncService.handleAppStateChange (which runs
+    // an immediate incremental syncFromExternal on inactive→active) and
+    // triggered a FULL file re-read of all 164+ files on top of that.
+    // Stacked file listings during the cold-start window choked the JS
+    // thread while the editor's WebView was trying to mount.
 
     // Handle keyboard dismiss (hide bottom section and discard draft)
     useEffect(() => {

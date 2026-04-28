@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         color: '#1A1A1A',
-        ...RTL_TEXT_STYLE,
     },
     iconButton: {
         padding: 8,

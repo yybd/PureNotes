@@ -10,7 +10,7 @@ import { NotesListScreen } from './src/screens/NotesListScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import PureNotesService from './src/services/PureNotesService';
 import BackgroundSyncService from './src/services/BackgroundSyncService';
-import { AppState, Platform, View, Text, StyleSheet } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -18,6 +18,7 @@ const Stack = createNativeStackNavigator();
 
 import { useNotesStore } from './src/stores/notesStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { EditorPrewarm } from './src/components/EditorPrewarm';
 
 // Synchronous check — runs before the app renders so we can hard-block
 // unsupported browsers entirely (no NavigationContainer, no notes UI).
@@ -62,18 +63,17 @@ export default function App() {
 
     initializeApp();
 
-    // Smart Sync: Refresh notes when app comes to foreground
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        loadNotes();
-      }
-    });
-
-    // Background sync: poll the active storage provider for external changes
+    // Background sync: poll the active storage provider for external changes.
+    // It also handles foreground transitions internally via AppState
+    // (running an immediate sync on inactive→active), so a separate
+    // AppState listener here would be redundant — we removed the previous
+    // listener that called loadNotes() on every foreground because it
+    // triggered a full file re-read on top of BackgroundSync's
+    // incremental sync, multiplying file-system pressure during the
+    // critical WebView cold-start window.
     BackgroundSyncService.start();
 
     return () => {
-      subscription.remove();
       BackgroundSyncService.stop();
     };
   }, [platformSupported, loadNotes]);
@@ -126,12 +126,16 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
-      {/* The previous EditorPrewarm here was a separate, throwaway WebView
-          whose only job was to warm the Tiptap module cache. It has been
-          removed because each EditorModal now self-prewarms — the actual
-          editor (which the user will use) loads its WebView in the
-          background at app start via InteractionManager. By the time the
-          user taps "new note" the editor is already alive and ready. */}
+      {/* iOS WebKit warm-up. Renders eagerly at App root — its WKWebView
+          is in the visible window from t=0 (positioned offscreen), which
+          is what triggers iOS to spawn the WebContent process and load
+          the WebKit framework into kernel/process caches in the background
+          while the user is still browsing the notes list.
+          Critical for iPad, where the cold WebContent process launch
+          alone takes 4-6 seconds. By the time the user taps "new note",
+          the modal's NEW WKWebView spins up against warm OS caches
+          rather than from cold. */}
+      <EditorPrewarm />
     </GestureHandlerRootView>
   );
 }

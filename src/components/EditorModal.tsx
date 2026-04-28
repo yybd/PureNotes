@@ -13,7 +13,6 @@ import {
     Platform,
     ActivityIndicator,
     StyleSheet,
-    InteractionManager,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -113,29 +112,21 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         }
     }, [editorMode]);
 
-    // Mount the SmartEditor (and its WebView) at app start — NOT on the
-    // first time the user taps "new note". The WebView's cold start
-    // (~300-800 ms, 2-3× more on iPad) is the dominant cost of opening
-    // the editor; if it happens during the user's tap they wait for it.
-    // By pre-mounting in the background while the user is browsing the
-    // notes list, the editor is already alive and ready by the time they
-    // tap, and the modal opens at near-zero cost.
-    //
-    // InteractionManager defers until React Native's interaction queue
-    // is idle — so this doesn't compete with the initial notes-list
-    // render. The WebView mount + Tiptap load happens silently in the
-    // background between t=~100 ms and t=~600 ms after launch.
-    //
-    // The editor stays mounted across every open/close cycle (the modal's
-    // visible prop just toggles native presentation, not the React tree),
-    // so subsequent opens are also instant.
+    // Mount the SmartEditor on the FIRST visible=true and keep it mounted
+    // across every subsequent open/close cycle. Pre-mounting inside the
+    // hidden Modal does NOT work on iOS: the WKWebView only triggers a
+    // WebContent process launch when it's in a visible window, and a
+    // <Modal visible={false}> hides its children from the visible window.
+    // The cold-start mitigation for the FIRST tap is handled by the
+    // <EditorPrewarm /> at App root — a separate WKWebView positioned
+    // off-screen but in the visible window, which warms iOS WebKit's
+    // shared resources (GPU process, WebKit framework, kernel caches).
     const [shouldMountEditor, setShouldMountEditor] = useState(false);
     useEffect(() => {
-        const handle = InteractionManager.runAfterInteractions(() => {
+        if (visible && !shouldMountEditor) {
             setShouldMountEditor(true);
-        });
-        return () => handle.cancel();
-    }, []);
+        }
+    }, [visible, shouldMountEditor]);
 
     // Track previous visibility to detect the false→true transition.
     const previousVisibleRef = useRef(false);

@@ -11,6 +11,7 @@ import {
     Platform,
     Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNotesStore } from '../stores/notesStore';
@@ -28,6 +29,8 @@ export const SettingsScreen = ({ navigation }: any) => {
     // unreliable on react-native-web (the auto-converted browser confirm
     // could be auto-dismissed by some browsers and didn't fire onPress).
     const [isDisconnectConfirmVisible, setIsDisconnectConfirmVisible] = useState(false);
+    const insets = useSafeAreaInsets();
+    const headerPaddingTop = Math.max(insets.top, 12);
 
     const handleSelectVaultDirectory = async () => {
         try {
@@ -74,7 +77,7 @@ export const SettingsScreen = ({ navigation }: any) => {
     return (
         <ScrollView style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
                 </TouchableOpacity>
@@ -295,8 +298,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
+        // paddingTop is applied inline in the component because it depends
+        // on useSafeAreaInsets — referencing the local `headerPaddingTop`
+        // inside StyleSheet.create (which runs at module load, outside the
+        // component) was throwing a ReferenceError on app start.
+        paddingBottom: 16,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#E0E0E0',
