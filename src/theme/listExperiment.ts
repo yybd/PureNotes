@@ -36,7 +36,7 @@ export const LIST_BACKGROUND = isMinimal ? '#FFFFFF' : '#F0F2F5';
 // Height of the soft fade strips at the top and bottom of the list.
 // Smaller in minimal so the hairline dividers stay visible right up to
 // the chrome edge instead of dissolving into a thick blur.
-export const LIST_FADE_HEIGHT = isMinimal ? 6 : 12;
+export const LIST_FADE_HEIGHT = isMinimal ? 10 : 12;
 
 // Cards in the list.
 export const CARD_RADIUS = isMinimal ? 0 : 16;
