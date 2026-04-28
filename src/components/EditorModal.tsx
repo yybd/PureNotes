@@ -35,8 +35,11 @@ import { USE_NATIVE_EDITOR } from '../config/editorMode';
 import {
     EDITOR_SURROUND_COLOR,
     EDITOR_CARD_RADIUS,
-    EDITOR_CARD_INSET,
+    EDITOR_HORIZONTAL_INSET,
     EDITOR_TOP_OFFSET,
+    EDITOR_NO_TITLE_TOP_OFFSET,
+    EDITOR_BOTTOM_INSET,
+    EDITOR_TITLE_TO_BODY_GAP,
     EDITOR_BORDER_WIDTH,
     EDITOR_BORDER_COLOR,
 } from '../theme/listExperiment';
@@ -605,12 +608,16 @@ const styles = StyleSheet.create({
         // Match the editor window's surround so the row blends with the
         // area around the editor.
         backgroundColor: EDITOR_SURROUND_COLOR,
+        // Match the writing window's horizontal inset so the bottom
+        // hairline (drawn on borderBottom) is the same width as the top
+        // hairline on titleContainer.
+        marginHorizontal: EDITOR_HORIZONTAL_INSET,
         paddingHorizontal: 16,
         paddingVertical: 8,
         gap: 8,
         // Bottom hairline of the writing window in minimal mode — sits
-        // here (last child of modalSheet) so it spans only the modalSheet
-        // width, not the full screen like the toolbar below.
+        // here (last child of modalSheet) so it spans only the writing
+        // window width, not the full screen like the toolbar below.
         borderBottomWidth: EDITOR_BORDER_WIDTH,
         borderBottomColor: EDITOR_BORDER_COLOR,
     },
@@ -626,7 +633,7 @@ const styles = StyleSheet.create({
     // black line is drawn at the top of the writing surface.
     titleContainer: {
         backgroundColor: '#FFFFFF',
-        marginHorizontal: EDITOR_CARD_INSET,
+        marginHorizontal: EDITOR_HORIZONTAL_INSET,
         marginTop: EDITOR_TOP_OFFSET,
         borderRadius: EDITOR_CARD_RADIUS,
         borderTopWidth: EDITOR_BORDER_WIDTH,
@@ -642,13 +649,13 @@ const styles = StyleSheet.create({
     },
     editorArea: {
         flex: 1,
-        // Match titleContainer's horizontal inset. The 4 px top keeps the
-        // title and editor reading as a single tight pair when both are
-        // shown; the no-title fallback below uses a larger top inset so the
-        // editor doesn't crowd the top of the modal in QuickAdd mode.
-        marginHorizontal: EDITOR_CARD_INSET,
-        marginTop: EDITOR_CARD_INSET === 0 ? 0 : 4,
-        marginBottom: EDITOR_CARD_INSET,
+        // Match titleContainer's horizontal inset. EDITOR_TITLE_TO_BODY_GAP
+        // keeps a small visual gap between the rounded title and editor
+        // cards in default; in minimal it collapses to 0 so the two read
+        // as one continuous white sheet.
+        marginHorizontal: EDITOR_HORIZONTAL_INSET,
+        marginTop: EDITOR_TITLE_TO_BODY_GAP,
+        marginBottom: EDITOR_BOTTOM_INSET,
         borderRadius: EDITOR_CARD_RADIUS,
         backgroundColor: '#FFFFFF',
         overflow: 'hidden',
@@ -661,7 +668,7 @@ const styles = StyleSheet.create({
     // top hairline lives on the editor card itself since there's no title,
     // and the breathing gap above the line uses EDITOR_TOP_OFFSET.
     editorAreaNoTitle: {
-        marginTop: EDITOR_CARD_INSET === 0 ? EDITOR_TOP_OFFSET : 32,
+        marginTop: EDITOR_NO_TITLE_TOP_OFFSET,
         borderTopWidth: EDITOR_BORDER_WIDTH,
         borderTopColor: EDITOR_BORDER_COLOR,
     },

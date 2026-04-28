@@ -71,10 +71,36 @@ export const CARD_SEPARATOR_COLOR = '#000000';
 // extends to both edges.
 export const EDITOR_SURROUND_COLOR = isMinimal ? '#FFFFFF' : '#F0F2F5';
 export const EDITOR_CARD_RADIUS = isMinimal ? 0 : 12;
-export const EDITOR_CARD_INSET = isMinimal ? 0 : 20;
-// Vertical breathing gap above the writing window so the top hairline
-// sits a little below the modal's top edge (gray of the surround shows
-// above it). Default keeps the original 20 px card inset on top.
-export const EDITOR_TOP_OFFSET = isMinimal ? 12 : 20;
+
+// Horizontal inset of the writing window inside modalSheet. In minimal
+// this also bounds the top and bottom hairlines, so a non-zero value
+// shrinks them so they don't reach the edges of the centered rail.
+export const EDITOR_HORIZONTAL_INSET = isMinimal ? 24 : 20;
+
+// Vertical breathing gap above the writing window — the surround color
+// (white in minimal) shows above the top hairline. Sized in minimal to
+// match the height of the white header bar on the main screen (icon row
+// 40 px + paddingBottom 16 px + 1 px border = 57 px), so the editor's
+// top hairline aligns with where the gray search row begins on the
+// notes list.
+export const EDITOR_TOP_OFFSET = isMinimal ? 57 : 20;
+
+// Bottom inset of the writing window. In default this gives the rounded
+// editor card breathing room above the toolbar; in minimal there is no
+// card and the bottom hairline already sits on domainSelectorRow, so 0
+// keeps it flush against the toolbar below.
+export const EDITOR_BOTTOM_INSET = isMinimal ? 0 : 20;
+
+// Vertical gap between titleContainer and editorArea when the title is
+// shown. 0 in minimal so the two read as one continuous white sheet;
+// 4 px in default for a small gap between the two rounded cards.
+export const EDITOR_TITLE_TO_BODY_GAP = isMinimal ? 0 : 4;
+
+// Top margin for the no-title flow (QuickAdd). In minimal we use the
+// same EDITOR_TOP_OFFSET (line aligned with main-screen gray section);
+// in default the original 32 px keeps the editor from crowding the
+// modal's top edge.
+export const EDITOR_NO_TITLE_TOP_OFFSET = isMinimal ? EDITOR_TOP_OFFSET : 32;
+
 export const EDITOR_BORDER_WIDTH = isMinimal ? StyleSheet.hairlineWidth : 0;
 export const EDITOR_BORDER_COLOR = '#000000';
