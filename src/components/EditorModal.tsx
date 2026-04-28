@@ -213,9 +213,20 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
         }, LOADER_DELAY_MS);
         return () => clearTimeout(id);
     }, [visible]);
-    // Hide the spinner the moment the editor reports ready.
+    // Hide the spinner the moment the editor reports ready. Also fires
+    // a manual focus if the modal is currently visible — handles the race
+    // where the user tapped "new note" before the WebView finished its
+    // cold start. In that case the open-transition effect already fired
+    // (with editorRef.current possibly not-yet-ready) and the focus call
+    // was a no-op or queued; this effect picks it up when ready.
+    const visibleRef = useRef(visible);
+    visibleRef.current = visible;
     useEffect(() => {
-        if (editorReady) setShowLoader(false);
+        if (!editorReady) return;
+        setShowLoader(false);
+        if (visibleRef.current && editorRef.current) {
+            setTimeout(() => editorRef.current?.focus?.(), 0);
+        }
     }, [editorReady]);
 
     React.useImperativeHandle(ref, () => ({
@@ -402,16 +413,28 @@ export const EditorModal = React.forwardRef<EditorModalRef, EditorModalProps>(({
     );
 
     // eagerMount path: render with a permanent screen-level View overlay.
-    // The View is always in the screen view tree, so the WKWebView inside
-    // is in the visible window from app start — iOS launches the
-    // WebContent process in the background while the user browses.
-    // opacity + pointerEvents toggle visibility instead of mounting.
+    // CRITICAL: hide via TRANSLATE rather than opacity. iOS WebKit
+    // empirically defers the WebContent process launch when a WKWebView
+    // sits at opacity=0 (treats it as "not needed yet"); but it DOES
+    // launch the process when the WKWebView is in the window and
+    // translated to off-screen coordinates (e.g. translateY: -100000).
+    // The same trick is used by the original <EditorPrewarm /> at App
+    // root — it works because iOS still considers a translated view to
+    // be "visible" for layer/process purposes, just outside the user's
+    // viewport. With opacity:0, our QuickAdd modal's WebContent process
+    // wasn't actually pre-launching at app start, so the first user tap
+    // still paid the full cold-start cost.
     if (eagerMount) {
         return (
             <View
                 style={[
                     StyleSheet.absoluteFillObject,
-                    { opacity: visible ? 1 : 0, zIndex: 1000 },
+                    {
+                        zIndex: 1000,
+                        // -100000 is far enough off-screen on any device,
+                        // even unfolded foldables / wide displays.
+                        transform: [{ translateY: visible ? 0 : -100000 }],
+                    },
                 ]}
                 pointerEvents={visible ? 'auto' : 'none'}
             >
