@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { SURROUND_COLOR } from '../theme/listExperiment';
 
 interface QuickAddInputProps {
     text: string;
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         direction: 'ltr',
         alignItems: 'center',
-        backgroundColor: '#F0F2F5',
+        backgroundColor: SURROUND_COLOR,
         paddingHorizontal: 16,
         paddingTop: 10,
         gap: 8,

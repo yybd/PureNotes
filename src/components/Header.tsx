@@ -7,6 +7,7 @@ import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
 import { SearchBar } from './SearchBar';
 import { DomainSelector } from './DomainSelector';
 import { DomainType } from '../types/Note';
+import { SURROUND_COLOR } from '../theme/listExperiment';
 
 interface HeaderProps {
     title: string;
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 8,
-        backgroundColor: '#F0F2F5',
+        backgroundColor: SURROUND_COLOR,
         zIndex: 10,
         // Cap the readable width on wide screens (web / large tablets) so
         // the search and domain filter don't stretch edge-to-edge.

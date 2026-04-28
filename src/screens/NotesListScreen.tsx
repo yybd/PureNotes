@@ -27,12 +27,19 @@ import { EditorModal, EditorModalRef } from '../components/EditorModal';
 import { EmptyNotesList } from '../components/EmptyNotesList';
 import { Note, DomainType } from '../types/Note';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import {
+    SURROUND_COLOR,
+    SURROUND_RGB,
+    CARD_GAP,
+    CARD_SEPARATOR_WIDTH,
+    CARD_SEPARATOR_COLOR,
+} from '../theme/listExperiment';
 
 // Stacked-View gradient — a stack of horizontal strips with decreasing
 // rgba alpha builds a smooth fade without depending on SVG (which had
 // inconsistent sizing on iPad/web due to viewBox + preserveAspectRatio
 // interactions). Pure RN primitives, identical behavior on every platform.
-const FADE_COLOR = '240, 242, 245'; // #F0F2F5 in rgb
+const FADE_COLOR = SURROUND_RGB;
 const FADE_STEPS = 12;
 const ScrollFade: React.FC<{
     style: any;
@@ -431,7 +438,13 @@ export const NotesListScreen = ({ navigation }: any) => {
 
     const renderNote = useCallback(({ item }: { item: Note }) => {
         return (
-            <View style={{ marginBottom: 12 }}>
+            <View
+                style={{
+                    marginBottom: CARD_GAP,
+                    borderBottomWidth: CARD_SEPARATOR_WIDTH,
+                    borderBottomColor: CARD_SEPARATOR_COLOR,
+                }}
+            >
                 <Swipeable
                     renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}
                     containerStyle={{ overflow: 'visible' }}
@@ -625,7 +638,7 @@ const styles = StyleSheet.create({
         // Match the centered content's surround color so the "wings" on wide
         // screens (web/tablet) blend with the search bar / quick-add bar /
         // editor surround instead of showing a slightly different shade.
-        backgroundColor: '#F0F2F5',
+        backgroundColor: SURROUND_COLOR,
     },
     bottomSection: {
         position: 'absolute',

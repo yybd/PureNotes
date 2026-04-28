@@ -32,6 +32,13 @@ import type { OnChangeStateEvent } from 'react-native-enriched';
 import { DomainType } from '../types/Note';
 import { RTL_TEXT_STYLE } from '../utils/rtlUtils';
 import { USE_NATIVE_EDITOR } from '../config/editorMode';
+import {
+    SURROUND_COLOR,
+    EDITOR_CARD_RADIUS,
+    EDITOR_CARD_INSET,
+    EDITOR_BORDER_WIDTH,
+    EDITOR_BORDER_COLOR,
+} from '../theme/listExperiment';
 
 // ─── Public ref ───────────────────────────────────────────────────────────────
 
@@ -577,11 +584,11 @@ const styles = StyleSheet.create({
         flex: 1,
         // Same gray as the centered modalSheet's background so the wings on
         // wide screens are uniform with the writing surface surround.
-        backgroundColor: '#F0F2F5',
+        backgroundColor: SURROUND_COLOR,
     },
     modalSheet: {
         flex: 1,
-        backgroundColor: '#F0F2F5',
+        backgroundColor: SURROUND_COLOR,
         // Cap the writing surface on wide screens so the editor stays
         // readable instead of stretching to ~1500 px on web.
         width: '100%',
@@ -596,7 +603,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         // Match the editor window's gray surround (modalSheet background) so
         // the row blends seamlessly with the area surrounding the editor.
-        backgroundColor: '#F0F2F5',
+        backgroundColor: SURROUND_COLOR,
         paddingHorizontal: 16,
         paddingVertical: 8,
         gap: 8,
@@ -609,11 +616,15 @@ const styles = StyleSheet.create({
     },
     // Title card — same horizontal inset and rounded corners as the editor
     // card below, so they read as a matched pair on the gray surround.
+    // In minimal mode the inset and radius collapse to 0 and a hairline
+    // black line is drawn at the top of the writing surface.
     titleContainer: {
         backgroundColor: '#FFFFFF',
-        marginHorizontal: 20,
-        marginTop: 20,
-        borderRadius: 12,
+        marginHorizontal: EDITOR_CARD_INSET,
+        marginTop: EDITOR_CARD_INSET,
+        borderRadius: EDITOR_CARD_RADIUS,
+        borderTopWidth: EDITOR_BORDER_WIDTH,
+        borderTopColor: EDITOR_BORDER_COLOR,
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
@@ -629,10 +640,10 @@ const styles = StyleSheet.create({
         // title and editor reading as a single tight pair when both are
         // shown; the no-title fallback below uses a larger top inset so the
         // editor doesn't crowd the top of the modal in QuickAdd mode.
-        marginHorizontal: 20,
-        marginTop: 4,
-        marginBottom: 20,
-        borderRadius: 12,
+        marginHorizontal: EDITOR_CARD_INSET,
+        marginTop: EDITOR_CARD_INSET === 0 ? 0 : 4,
+        marginBottom: EDITOR_CARD_INSET,
+        borderRadius: EDITOR_CARD_RADIUS,
         backgroundColor: '#FFFFFF',
         overflow: 'hidden',
         // The "Border Trick"
@@ -640,9 +651,12 @@ const styles = StyleSheet.create({
         borderColor: '#FFFFFF',
     },
     // No-title flow (QuickAdd) — give the editor card more breathing room
-    // above so it doesn't hug the top of the modal.
+    // above so it doesn't hug the top of the modal. In minimal mode the
+    // top hairline lives on the editor card itself since there's no title.
     editorAreaNoTitle: {
-        marginTop: 32,
+        marginTop: EDITOR_CARD_INSET === 0 ? 0 : 32,
+        borderTopWidth: EDITOR_BORDER_WIDTH,
+        borderTopColor: EDITOR_BORDER_COLOR,
     },
     editorLoader: {
         // Sits on top of the (still-empty) editor area while the WebView and
@@ -668,6 +682,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#E0E0E0',
+        // Bottom hairline of the writing window in minimal mode — sits
+        // between the toolbar and the domain selector row, completing the
+        // top-and-bottom-line frame around the writing surface.
+        borderBottomWidth: EDITOR_BORDER_WIDTH,
+        borderBottomColor: EDITOR_BORDER_COLOR,
         paddingHorizontal: 4,
     },
     sendButtonModal: {

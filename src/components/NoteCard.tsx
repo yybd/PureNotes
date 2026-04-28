@@ -27,6 +27,7 @@ import { UnifiedMarkdownDisplay } from './UnifiedMarkdownDisplay';
 import { SmartEditor, SmartEditorRef } from './SmartEditor';
 import { getDirection, RTL_TEXT_STYLE } from '../utils/rtlUtils';
 import { handleListContinuation, toggleCheckboxByIndex, appendChecklistItem } from '../utils/markdownUtils';
+import { CARD_RADIUS, CARD_SHOW_SHADOW } from '../theme/listExperiment';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -698,19 +699,25 @@ export const NoteCard = React.memo(NoteCardImpl, arePropsEqual);
 const styles = StyleSheet.create({
     cardShadow: {
         marginBottom: 12,
-        borderRadius: 16,
+        borderRadius: CARD_RADIUS,
         backgroundColor: '#FFFFFF', // Required for shadow/elevation on Android
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 4,
+        ...(CARD_SHOW_SHADOW
+            ? {
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  elevation: 4,
+              }
+            : null),
     },
-    cardExpandedShadow: {
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-        elevation: 6,
-    },
+    cardExpandedShadow: CARD_SHOW_SHADOW
+        ? {
+              shadowOpacity: 0.12,
+              shadowRadius: 12,
+              elevation: 6,
+          }
+        : {},
     cardClip: {
         // Pass-through layer for the TouchableOpacity — visual rounding/clipping
         // lives on cardShadow above. Avoids stacking multiple rounded edges,
@@ -722,7 +729,7 @@ const styles = StyleSheet.create({
     cardEditing: {
         borderWidth: 2,
         borderColor: '#000000',
-        borderRadius: 16,
+        borderRadius: CARD_RADIUS,
     },
     header: {
         flexDirection: 'row',
